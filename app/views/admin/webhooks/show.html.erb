@@ -1,0 +1,141 @@
+<div class="flex justify-between items-center mb-4">
+  <div class="flex gap-3 items-center">
+    <%= link_to admin_webhooks_path, class: "btn btn-ghost btn-sm btn-square" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-xl font-bold">Webhook #<%= @webhook.id %></h1>
+  </div>
+  <div class="flex gap-2">
+    <%= button_to "Replay", replay_admin_webhook_path(@webhook), method: :post, class: "btn btn-primary btn-sm",
+        data: { turbo_confirm: "Replay this webhook to all active targets?" } %>
+    <%= button_to "Delete", admin_webhook_path(@webhook), method: :delete, class: "btn btn-error btn-outline btn-sm",
+        data: { turbo_confirm: "Delete this webhook and all its deliveries?" } %>
+  </div>
+</div>
+
+<!-- Metadata bar -->
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Received</div>
+      <div class="font-medium"><%= @webhook.received_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Source IP</div>
+      <div class="font-mono"><%= @webhook.source_ip %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Content-Type</div>
+      <div class="font-mono text-sm truncate" title="<%= @webhook.content_type %>"><%= @webhook.content_type %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Size</div>
+      <div><%= number_to_human_size(@webhook.payload_size) %></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs tabs-border mb-4">
+  <input type="radio" name="webhook_tabs" class="tab" aria-label="Payload" checked="checked" />
+  <div class="tab-content border-base-300 bg-base-100 rounded-box p-4">
+    <div class="space-y-4">
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="font-medium">Headers</h3>
+        </div>
+        <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box max-h-64"><%= JSON.pretty_generate(@webhook.headers) %></pre>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="font-medium">Body</h3>
+        </div>
+        <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all max-h-96"><% if @webhook.content_type&.include?('json') && @webhook.payload.present? %><%= begin; JSON.pretty_generate(JSON.parse(@webhook.payload)); rescue; @webhook.payload; end %><% else %><%= @webhook.payload.presence || "(empty)" %><% end %></pre>
+      </div>
+    </div>
+  </div>
+
+  <input type="radio" name="webhook_tabs" class="tab" aria-label="Deliveries (<%= @deliveries.count %>)" />
+  <div class="tab-content border-base-300 bg-base-100 rounded-box p-4">
+    <% if @deliveries.any? %>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr class="border-b border-base-300">
+              <th>Target</th>
+              <th>Status</th>
+              <th>HTTP Code</th>
+              <th>Attempts</th>
+              <th>Dispatched</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @deliveries.each do |delivery| %>
+              <tr class="hover border-b border-base-200">
+                <td>
+                  <% if delivery.target %>
+                    <%= link_to delivery.target.name, admin_target_path(delivery.target), class: "link link-primary font-medium" %>
+                    <div class="text-xs text-base-content/60 truncate max-w-xs"><%= delivery.target.url %></div>
+                  <% else %>
+                    <span class="text-base-content/60">(deleted)</span>
+                  <% end %>
+                </td>
+                <td>
+                  <span class="badge badge-sm <%= case delivery.status
+                    when 'success' then 'badge-success'
+                    when 'failed' then 'badge-error'
+                    when 'pending' then 'badge-warning'
+                    when 'filtered' then 'badge-info'
+                  end %>">
+                    <%= delivery.status %>
+                  </span>
+                </td>
+                <td class="font-mono"><%= delivery.status_code || '-' %></td>
+                <td><%= delivery.attempts %></td>
+                <td class="text-sm"><%= delivery.dispatched_at&.strftime("%Y-%m-%d %H:%M:%S") || '-' %></td>
+                <td>
+                  <% if delivery.response_body.present? || delivery.error_message.present? %>
+                    <button class="btn btn-ghost btn-xs" onclick="document.getElementById('response_<%= delivery.id %>').showModal()">
+                      Details
+                    </button>
+                    <dialog id="response_<%= delivery.id %>" class="modal">
+                      <div class="modal-box max-w-3xl">
+                        <h3 class="font-bold text-lg mb-4">Delivery to <%= delivery.target&.name || 'Deleted Target' %></h3>
+                        <% if delivery.error_message.present? %>
+                          <div class="alert alert-error mb-4">
+                            <span><%= delivery.error_message %></span>
+                          </div>
+                        <% end %>
+                        <% if delivery.response_body.present? %>
+                          <div class="text-sm font-medium mb-2">Response Body</div>
+                          <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all max-h-96"><%= delivery.response_body %></pre>
+                        <% end %>
+                        <div class="modal-action">
+                          <form method="dialog">
+                            <button class="btn">Close</button>
+                          </form>
+                        </div>
+                      </div>
+                      <form method="dialog" class="modal-backdrop">
+                        <button>close</button>
+                      </form>
+                    </dialog>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="text-center py-8 text-base-content/60">
+        <p>No deliveries yet</p>
+        <p class="text-sm mt-1">Click "Replay" to dispatch this webhook to active targets</p>
+      </div>
+    <% end %>
+  </div>
+</div>

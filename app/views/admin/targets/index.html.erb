@@ -1,0 +1,55 @@
+<div class="flex justify-between items-center mb-4">
+  <h1 class="text-xl font-bold">Targets</h1>
+  <%= link_to "Add Target", new_admin_target_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<% if @targets.any? %>
+  <div class="flex flex-col gap-3">
+    <% @targets.each do |target| %>
+      <div class="bg-base-100 rounded-box border border-base-300 p-4">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-4 flex-1 min-w-0">
+            <%= form_with model: [:admin, target], local: true, class: "inline" do |f| %>
+              <%= f.hidden_field :active, value: !target.active %>
+              <input type="checkbox"
+                     class="toggle toggle-success toggle-sm"
+                     <%= target.active? ? 'checked' : '' %>
+                     onchange="this.form.submit()"
+                     title="<%= target.active? ? 'Active' : 'Inactive' %>" />
+            <% end %>
+            <div class="min-w-0 flex-1">
+              <h3 class="font-medium"><%= target.name %></h3>
+              <p class="text-xs font-mono text-base-content/60 truncate" title="<%= target.url %>">
+                <%= target.url %>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <div class="flex gap-2">
+              <span class="badge badge-sm badge-ghost"><%= target.filter_count %> filters</span>
+              <span class="badge badge-sm <%= target.success_rate_24h >= 90 ? 'badge-success' : target.success_rate_24h >= 50 ? 'badge-warning' : 'badge-error' %>">
+                <%= target.success_rate_24h %>% (24h)
+              </span>
+            </div>
+
+            <div class="flex gap-1">
+              <%= button_to "Test", test_admin_target_path(target), method: :post, class: "btn btn-ghost btn-xs" %>
+              <%= link_to "Edit", edit_admin_target_path(target), class: "btn btn-ghost btn-xs" %>
+              <%= button_to "Delete", admin_target_path(target), method: :delete, class: "btn btn-ghost btn-xs text-error",
+                  data: { turbo_confirm: "Delete target '#{target.name}'?" } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="bg-base-100 rounded-box border border-base-300 text-center py-12 text-base-content/60">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+    </svg>
+    <p class="font-medium">No targets configured</p>
+    <p class="text-sm mt-1">Add a target to start receiving webhook deliveries</p>
+  </div>
+<% end %>

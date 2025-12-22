@@ -1,0 +1,73 @@
+<div class="flex justify-between items-center mb-4">
+  <h1 class="text-xl font-bold">Webhooks</h1>
+
+  <%= form_with url: admin_webhooks_path, method: :get, class: "flex gap-2 items-end" do %>
+    <label class="form-control">
+      <span class="label-text text-xs mb-1">From</span>
+      <%= date_field_tag :date_from, params[:date_from], class: "input input-bordered input-sm" %>
+    </label>
+    <label class="form-control">
+      <span class="label-text text-xs mb-1">To</span>
+      <%= date_field_tag :date_to, params[:date_to], class: "input input-bordered input-sm" %>
+    </label>
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <% if params[:date_from].present? || params[:date_to].present? %>
+      <%= link_to "Clear", admin_webhooks_path, class: "btn btn-ghost btn-sm" %>
+    <% end %>
+  <% end %>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300">
+  <% if @webhooks.any? %>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr class="border-b border-base-300">
+            <th>ID</th>
+            <th>Received</th>
+            <th>Source IP</th>
+            <th>Content-Type</th>
+            <th>Size</th>
+            <th>Dispatches</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @webhooks.each do |webhook| %>
+            <tr class="hover border-b border-base-200">
+              <td class="font-mono text-sm"><%= webhook.id %></td>
+              <td class="text-sm">
+                <div><%= webhook.received_at.strftime("%Y-%m-%d") %></div>
+                <div class="text-xs text-base-content/60"><%= webhook.received_at.strftime("%H:%M:%S") %></div>
+              </td>
+              <td class="font-mono text-sm"><%= webhook.source_ip %></td>
+              <td class="text-sm"><%= webhook.content_type.truncate(30) %></td>
+              <td class="text-sm"><%= number_to_human_size(webhook.payload_size) %></td>
+              <td>
+                <% stats = webhook.dispatch_stats %>
+                <span class="badge badge-sm <%= stats[:success] == stats[:total] ? 'badge-success' : 'badge-warning' %>">
+                  <%= stats[:success] %>/<%= stats[:total] %>
+                </span>
+              </td>
+              <td class="text-right">
+                <%= link_to "View", admin_webhook_path(webhook), class: "btn btn-ghost btn-xs" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-center p-4 border-t border-base-300">
+      <%= paginate @webhooks %>
+    </div>
+  <% else %>
+    <div class="text-center py-12 text-base-content/60">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+      </svg>
+      <p class="font-medium">No webhooks received yet</p>
+      <p class="text-sm mt-1">Send a POST request to <code class="bg-base-200 px-2 py-1 rounded">/webhooks/receive</code></p>
+    </div>
+  <% end %>
+</div>

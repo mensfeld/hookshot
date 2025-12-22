@@ -1,0 +1,94 @@
+<div class="flex justify-between items-center mb-4">
+  <div class="flex gap-3 items-center">
+    <%= link_to admin_dispatches_path, class: "btn btn-ghost btn-sm btn-square" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-xl font-bold">Dispatch #<%= @delivery.id %></h1>
+    <span class="badge <%= case @delivery.status
+      when 'success' then 'badge-success'
+      when 'failed' then 'badge-error'
+      when 'pending' then 'badge-warning'
+      when 'filtered' then 'badge-info'
+    end %>">
+      <%= @delivery.status %>
+    </span>
+  </div>
+  <% if @delivery.retryable? %>
+    <%= button_to "Retry", retry_admin_dispatch_path(@delivery), method: :post, class: "btn btn-primary btn-sm" %>
+  <% end %>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">HTTP Code</div>
+      <div class="font-mono"><%= @delivery.status_code || '-' %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Attempts</div>
+      <div><%= @delivery.attempts %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Created</div>
+      <div><%= @delivery.created_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Dispatched</div>
+      <div><%= @delivery.dispatched_at&.strftime("%Y-%m-%d %H:%M:%S") || '-' %></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+  <div class="bg-base-100 rounded-box border border-base-300 p-4">
+    <h3 class="font-medium mb-3">Webhook</h3>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <span class="text-base-content/60">ID</span>
+        <%= link_to "##{@delivery.webhook.id}", admin_webhook_path(@delivery.webhook), class: "link link-primary" %>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-base-content/60">Received</span>
+        <span><%= @delivery.webhook.received_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-base-content/60">Source IP</span>
+        <span class="font-mono"><%= @delivery.webhook.source_ip %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-base-100 rounded-box border border-base-300 p-4">
+    <h3 class="font-medium mb-3">Target</h3>
+    <% if @delivery.target %>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-base-content/60">Name</span>
+          <%= link_to @delivery.target.name, admin_target_path(@delivery.target), class: "link link-primary" %>
+        </div>
+        <div>
+          <span class="text-base-content/60">URL</span>
+          <div class="font-mono text-xs break-all"><%= @delivery.target.url %></div>
+        </div>
+      </div>
+    <% else %>
+      <p class="text-base-content/60">Target has been deleted</p>
+    <% end %>
+  </div>
+</div>
+
+<% if @delivery.error_message.present? %>
+  <div class="bg-base-100 rounded-box border border-error p-4 mb-4">
+    <h3 class="font-medium text-error mb-2">Error</h3>
+    <pre class="text-sm font-mono text-error"><%= @delivery.error_message %></pre>
+  </div>
+<% end %>
+
+<% if @delivery.response_body.present? %>
+  <div class="bg-base-100 rounded-box border border-base-300 p-4">
+    <h3 class="font-medium mb-3">Response Body</h3>
+    <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all max-h-96"><%= @delivery.response_body %></pre>
+  </div>
+<% end %>

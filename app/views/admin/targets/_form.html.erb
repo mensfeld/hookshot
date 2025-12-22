@@ -1,0 +1,142 @@
+<%= form_with model: [:admin, @target], class: "space-y-6" do |f| %>
+  <% if @target.errors.any? %>
+    <div class="alert alert-error">
+      <ul class="list-disc list-inside text-sm">
+        <% @target.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <label class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">Name</span>
+      <%= f.text_field :name, class: "input input-bordered w-full", placeholder: "My API Server" %>
+    </label>
+
+    <label class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">URL</span>
+      <%= f.url_field :url, class: "input input-bordered w-full font-mono", placeholder: "https://api.example.com/webhook" %>
+    </label>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <label class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">Timeout (seconds)</span>
+      <%= f.number_field :timeout, class: "input input-bordered w-full", min: 1, max: 300 %>
+    </label>
+
+    <div class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">Status</span>
+      <label class="cursor-pointer flex items-center gap-3 h-12">
+        <%= f.check_box :active, class: "toggle toggle-success" %>
+        <span class="text-sm">Receive webhooks when active</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-3">Custom Headers</h3>
+    <div id="custom-headers" class="space-y-2" data-controller="headers">
+      <% (@target.custom_headers.presence || {}).each do |key, value| %>
+        <div class="flex gap-2 items-center" data-headers-target="row">
+          <input type="text" name="target[custom_headers_keys][]" value="<%= key %>"
+                 class="input input-bordered input-sm flex-1" placeholder="Header Name" />
+          <input type="text" name="target[custom_headers_values][]" value="<%= value %>"
+                 class="input input-bordered input-sm flex-1" placeholder="Header Value" />
+          <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="click->headers#remove">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      <% end %>
+      <template data-headers-target="template">
+        <div class="flex gap-2 items-center" data-headers-target="row">
+          <input type="text" name="target[custom_headers_keys][]" value=""
+                 class="input input-bordered input-sm flex-1" placeholder="Header Name" />
+          <input type="text" name="target[custom_headers_values][]" value=""
+                 class="input input-bordered input-sm flex-1" placeholder="Header Value" />
+          <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="click->headers#remove">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </template>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="click->headers#add">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add Header
+      </button>
+    </div>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-3">Filters</h3>
+    <p class="text-sm text-base-content/60 mb-3">Only deliver webhooks that match all filters</p>
+    <div id="filters" class="space-y-2" data-controller="filters">
+      <%= f.fields_for :filters do |filter_form| %>
+        <div class="grid grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
+          <%= filter_form.hidden_field :id %>
+          <%= filter_form.hidden_field :_destroy, value: false, class: "destroy-field" %>
+
+          <%= filter_form.select :filter_type, Filter.filter_types.keys.map { |t| [t.titleize, t] },
+              {}, class: "select select-bordered select-sm col-span-2" %>
+
+          <%= filter_form.text_field :field, placeholder: "Field (e.g., X-Api-Key or $.event)",
+              class: "input input-bordered input-sm col-span-4 font-mono" %>
+
+          <%= filter_form.select :operator, Filter.operators.keys.map { |o| [o.titleize, o] },
+              {}, class: "select select-bordered select-sm col-span-2" %>
+
+          <%= filter_form.text_field :value, placeholder: "Value",
+              class: "input input-bordered input-sm col-span-3" %>
+
+          <button type="button" class="btn btn-ghost btn-sm btn-square col-span-1" data-action="click->filters#remove">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      <% end %>
+
+      <template data-filters-target="template">
+        <div class="grid grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
+          <select name="target[filters_attributes][NEW_INDEX][filter_type]" class="select select-bordered select-sm col-span-2">
+            <option value="header">Header</option>
+            <option value="payload">Payload</option>
+          </select>
+          <input type="text" name="target[filters_attributes][NEW_INDEX][field]"
+                 placeholder="Field" class="input input-bordered input-sm col-span-4 font-mono" />
+          <select name="target[filters_attributes][NEW_INDEX][operator]" class="select select-bordered select-sm col-span-2">
+            <option value="exists">Exists</option>
+            <option value="equals">Equals</option>
+            <option value="matches">Matches</option>
+          </select>
+          <input type="text" name="target[filters_attributes][NEW_INDEX][value]"
+                 placeholder="Value" class="input input-bordered input-sm col-span-3" />
+          <button type="button" class="btn btn-ghost btn-sm btn-square col-span-1" data-action="click->filters#remove">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </template>
+
+      <button type="button" class="btn btn-ghost btn-sm" data-action="click->filters#add">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add Filter
+      </button>
+    </div>
+  </div>
+
+  <div class="border-t border-base-300 pt-6 flex gap-2">
+    <%= f.submit @target.new_record? ? "Create Target" : "Update Target", class: "btn btn-primary" %>
+    <%= link_to "Cancel", admin_targets_path, class: "btn btn-ghost" %>
+  </div>
+<% end %>

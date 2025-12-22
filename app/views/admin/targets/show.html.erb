@@ -1,0 +1,58 @@
+<div class="flex justify-between items-center mb-4">
+  <div class="flex gap-3 items-center">
+    <%= link_to admin_targets_path, class: "btn btn-ghost btn-sm btn-square" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-xl font-bold"><%= @target.name %></h1>
+    <span class="badge <%= @target.active? ? 'badge-success' : 'badge-ghost' %>">
+      <%= @target.active? ? 'Active' : 'Inactive' %>
+    </span>
+  </div>
+  <%= link_to "Edit", edit_admin_target_path(@target), class: "btn btn-primary btn-sm" %>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">URL</div>
+      <div class="font-mono text-sm break-all"><%= @target.url %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Timeout</div>
+      <div><%= @target.timeout %> seconds</div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Success Rate (24h)</div>
+      <span class="badge <%= @target.success_rate_24h >= 90 ? 'badge-success' : @target.success_rate_24h >= 50 ? 'badge-warning' : 'badge-error' %>">
+        <%= @target.success_rate_24h %>%
+      </span>
+    </div>
+  </div>
+</div>
+
+<% if @target.custom_headers.present? %>
+  <div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+    <h3 class="font-medium mb-3">Custom Headers</h3>
+    <div class="space-y-1">
+      <% @target.custom_headers.each do |key, value| %>
+        <div class="text-sm">
+          <span class="font-mono text-base-content/60"><%= key %>:</span>
+          <span class="font-mono"><%= value %></span>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<% if @target.filters.any? %>
+  <div class="bg-base-100 rounded-box border border-base-300 p-4">
+    <h3 class="font-medium mb-3">Filters</h3>
+    <div class="flex flex-wrap gap-2">
+      <% @target.filters.each do |filter| %>
+        <span class="badge badge-outline"><%= filter.description %></span>
+      <% end %>
+    </div>
+  </div>
+<% end %>

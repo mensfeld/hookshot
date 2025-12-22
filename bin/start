@@ -1,0 +1,19 @@
+#!/bin/bash -e
+
+# Start Solid Queue in the background
+./bin/rails solid_queue:start &
+SOLID_QUEUE_PID=$!
+
+# Start Puma web server
+./bin/rails server -b 0.0.0.0 &
+PUMA_PID=$!
+
+# Handle shutdown
+trap "kill $SOLID_QUEUE_PID $PUMA_PID 2>/dev/null" EXIT SIGTERM SIGINT
+
+# Wait for either process to exit
+wait -n $SOLID_QUEUE_PID $PUMA_PID
+
+# If one exits, kill the other and exit
+kill $SOLID_QUEUE_PID $PUMA_PID 2>/dev/null
+wait

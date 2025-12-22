@@ -1,0 +1,93 @@
+<div class="flex justify-between items-center mb-4">
+  <h1 class="text-xl font-bold">Dispatches</h1>
+
+  <%= form_with url: admin_dispatches_path, method: :get, class: "flex gap-2 items-end" do %>
+    <label class="form-control">
+      <span class="label-text text-xs mb-1">Status</span>
+      <%= select_tag :status,
+          options_for_select([["All", ""]] + Delivery.statuses.keys.map { |s| [s.titleize, s] }, params[:status]),
+          class: "select select-bordered select-sm" %>
+    </label>
+    <label class="form-control">
+      <span class="label-text text-xs mb-1">Target</span>
+      <%= select_tag :target_id,
+          options_for_select([["All", ""]] + @targets.map { |t| [t.name, t.id] }, params[:target_id]),
+          class: "select select-bordered select-sm" %>
+    </label>
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <% if params[:status].present? || params[:target_id].present? %>
+      <%= link_to "Clear", admin_dispatches_path, class: "btn btn-ghost btn-sm" %>
+    <% end %>
+  <% end %>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300">
+  <% if @deliveries.any? %>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr class="border-b border-base-300">
+            <th>ID</th>
+            <th>Webhook</th>
+            <th>Target</th>
+            <th>Status</th>
+            <th>Code</th>
+            <th>Attempts</th>
+            <th>Time</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @deliveries.each do |delivery| %>
+            <tr class="hover border-b border-base-200">
+              <td class="font-mono text-sm"><%= delivery.id %></td>
+              <td>
+                <%= link_to "##{delivery.webhook_id}", admin_webhook_path(delivery.webhook_id), class: "link link-primary" %>
+              </td>
+              <td>
+                <% if delivery.target %>
+                  <%= delivery.target.name %>
+                <% else %>
+                  <span class="text-base-content/60">(deleted)</span>
+                <% end %>
+              </td>
+              <td>
+                <span class="badge badge-sm <%= case delivery.status
+                  when 'success' then 'badge-success'
+                  when 'failed' then 'badge-error'
+                  when 'pending' then 'badge-warning'
+                  when 'filtered' then 'badge-info'
+                end %>">
+                  <%= delivery.status %>
+                </span>
+              </td>
+              <td class="font-mono text-sm"><%= delivery.status_code || '-' %></td>
+              <td><%= delivery.attempts %></td>
+              <td class="text-sm">
+                <div><%= delivery.dispatched_at&.strftime("%Y-%m-%d") || delivery.created_at.strftime("%Y-%m-%d") %></div>
+                <div class="text-xs text-base-content/60"><%= delivery.dispatched_at&.strftime("%H:%M:%S") || delivery.created_at.strftime("%H:%M:%S") %></div>
+              </td>
+              <td class="text-right">
+                <%= link_to "View", admin_dispatch_path(delivery), class: "btn btn-ghost btn-xs" %>
+                <% if delivery.retryable? %>
+                  <%= button_to "Retry", retry_admin_dispatch_path(delivery), method: :post, class: "btn btn-primary btn-xs" %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-center p-4 border-t border-base-300">
+      <%= paginate @deliveries %>
+    </div>
+  <% else %>
+    <div class="text-center py-12 text-base-content/60">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      <p class="font-medium">No dispatches found</p>
+    </div>
+  <% end %>
+</div>

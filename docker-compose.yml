@@ -1,0 +1,17 @@
+services:
+  hookshot:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - hookshot_data:/rails/storage
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - HOOKSHOT_USER=${HOOKSHOT_USER:-admin}
+      - HOOKSHOT_PASSWORD=${HOOKSHOT_PASSWORD:-changeme}
+      - RETENTION_DAYS=${RETENTION_DAYS:-30}
+    restart: unless-stopped
+
+volumes:
+  hookshot_data:
