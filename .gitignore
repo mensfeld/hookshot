@@ -45,3 +45,6 @@
 
 # Coverage reports
 /coverage
+
+# Local build scripts
+/build_and_push.sh
