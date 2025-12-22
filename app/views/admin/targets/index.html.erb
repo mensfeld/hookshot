@@ -33,10 +33,10 @@
               </span>
             </div>
 
-            <div class="flex gap-1">
-              <%= button_to "Test", test_admin_target_path(target), method: :post, class: "btn btn-ghost btn-xs" %>
+            <div class="flex items-center gap-1">
+              <%= button_to "Test", test_admin_target_path(target), method: :post, form_class: "inline-flex", class: "btn btn-ghost btn-xs" %>
               <%= link_to "Edit", edit_admin_target_path(target), class: "btn btn-ghost btn-xs" %>
-              <%= button_to "Delete", admin_target_path(target), method: :delete, class: "btn btn-ghost btn-xs text-error",
+              <%= button_to "Delete", admin_target_path(target), method: :delete, form_class: "inline-flex", class: "btn btn-ghost btn-xs text-error",
                   data: { turbo_confirm: "Delete target '#{target.name}'?" } %>
             </div>
           </div>
