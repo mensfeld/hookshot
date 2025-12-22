@@ -11,7 +11,5 @@ end
 Rails.application.config.after_initialize do
   MissionControl::Jobs::ApplicationController.class_eval do
     include Authenticatable
-
-    before_action :authenticate!
   end
 end
