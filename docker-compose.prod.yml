@@ -1,0 +1,54 @@
+version: "3.8"
+
+# Production Docker Compose with Caddy for automatic SSL
+#
+# Port forwarding required on your router:
+#   - Port 80 -> server:80 (for ACME HTTP challenges, required for cert renewal)
+#   - Port 23014 -> server:443 (for HTTPS traffic to the app)
+#
+# Usage:
+#   1. Copy .env.example to .env and configure
+#   2. docker compose -f docker-compose.prod.yml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"       # ACME HTTP challenges (keep open for renewals)
+      - "443:443"     # HTTPS (forward from 23014 externally)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-webhooks.susanoo.pl}
+    depends_on:
+      - hookshot
+    networks:
+      - hookshot-network
+
+  hookshot:
+    build: .
+    restart: unless-stopped
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
+      - HOOKSHOT_USER=${HOOKSHOT_USER:-admin}
+      - HOOKSHOT_PASSWORD=${HOOKSHOT_PASSWORD:?HOOKSHOT_PASSWORD is required}
+      - RETENTION_DAYS=${RETENTION_DAYS:-30}
+    volumes:
+      - hookshot_data:/rails/storage
+    expose:
+      - "3000"
+    networks:
+      - hookshot-network
+
+volumes:
+  hookshot_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  hookshot-network:
+    driver: bridge
