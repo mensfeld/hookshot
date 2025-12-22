@@ -35,6 +35,7 @@ production:
     <<: *default
     database: storage/production_queue.sqlite3
     migrations_paths: db/queue_migrate
+    max_connections: 10
   cable:
     <<: *default
     database: storage/production_cable.sqlite3
