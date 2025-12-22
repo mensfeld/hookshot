@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "includePaths": [
+    "Gemfile",
+    "package.json",
+    ".github/workflows/**"
+  ],
+  "packageRules": [
+    {
+      "minimumReleaseAge": "7 days",
+      "matchDepNames": [
+        "/*/"
+      ]
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "pinDigests": true
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "groupName": "npm dependencies",
+      "commitMessageTopic": "npm dependencies"
+    }
+  ]
+}
