@@ -185,36 +185,6 @@ docker run -d \
 
 Data is persisted in the `hookshot_data` volume.
 
-## Development
-
-```bash
-# Run tests with coverage report
-bundle exec rspec
-# Coverage report generated at coverage/index.html
-
-# Run linter
-bundle exec rubocop
-
-# Check documentation coverage
-bundle exec yard-lint app/
-
-# Watch for CSS changes
-rails tailwindcss:watch
-```
-
-### Code Quality
-
-- **RSpec** with 85% minimum line and branch coverage (SimpleCov)
-- **RuboCop** with Rails Omakase style
-- **yard-lint** for YARD documentation validation
-
-### CI
-
-GitHub Actions runs on every push/PR:
-- Test suite with coverage enforcement
-- RuboCop linting
-- YARD documentation validation
-
 ## License
 
-MIT
+MIT - see [LICENSE.md](LICENSE.md) for details.
