@@ -1,5 +1,8 @@
 # Hookshot
 
+[![CI](https://github.com/mensfeld/hookshot/actions/workflows/ci.yml/badge.svg)](https://github.com/mensfeld/hookshot/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-85%25+-brightgreen)](https://github.com/mensfeld/hookshot)
+
 A self-hosted webhook relay service built with Rails 8. Receives webhooks, filters them based on configurable rules, and dispatches to multiple target endpoints.
 
 ## Quick Start
