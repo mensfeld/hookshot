@@ -3,7 +3,15 @@
 require "mission_control/jobs"
 
 Rails.application.configure do
-  config.mission_control.jobs.http_basic_auth_enabled = true
-  config.mission_control.jobs.http_basic_auth_user = ENV.fetch("HOOKSHOT_USER", "admin")
-  config.mission_control.jobs.http_basic_auth_password = ENV.fetch("HOOKSHOT_PASSWORD", "changeme")
+  # Disable Mission Control's built-in auth - we'll use the app's auth
+  config.mission_control.jobs.http_basic_auth_enabled = false
+end
+
+# Add custom authentication via the application's existing auth
+Rails.application.config.after_initialize do
+  MissionControl::Jobs::ApplicationController.class_eval do
+    include Authenticatable
+
+    before_action :authenticate!
+  end
 end
