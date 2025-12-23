@@ -6,7 +6,7 @@
 <% if @targets.any? %>
   <div class="flex flex-col gap-3">
     <% @targets.each do |target| %>
-      <div class="bg-base-100 rounded-box border border-base-300 p-4">
+      <div class="bg-base-100 rounded-box border border-base-300 p-4 hover:bg-base-200 transition-colors">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-4 flex-1 min-w-0">
             <%= form_with model: [:admin, target], local: true, class: "inline" do |f| %>

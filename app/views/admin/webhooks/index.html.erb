@@ -34,7 +34,7 @@
         </thead>
         <tbody>
           <% @webhooks.each do |webhook| %>
-            <tr class="hover border-b border-base-200">
+            <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" onclick="window.location='<%= admin_webhook_path(webhook) %>'">
               <td class="font-mono text-sm"><%= webhook.id %></td>
               <td class="text-sm">
                 <div><%= webhook.received_at.strftime("%Y-%m-%d") %></div>

@@ -39,7 +39,7 @@
         </thead>
         <tbody>
           <% @deliveries.each do |delivery| %>
-            <tr class="hover border-b border-base-200">
+            <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" onclick="window.location='<%= admin_dispatch_path(delivery) %>'">
               <td class="font-mono text-sm"><%= delivery.id %></td>
               <td>
                 <%= link_to "##{delivery.webhook_id}", admin_webhook_path(delivery.webhook_id), class: "link link-primary" %>
