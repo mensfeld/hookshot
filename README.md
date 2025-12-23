@@ -5,6 +5,8 @@
 
 A self-hosted webhook relay service built with Rails 8. Receives webhooks, filters them based on configurable rules, and dispatches to multiple target endpoints.
 
+![Hookshot Screenshot](misc/screenshot.png)
+
 ## Quick Start
 
 ```bash
