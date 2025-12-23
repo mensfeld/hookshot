@@ -15,5 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "daisyui": "^5.5.14"
+  },
+  "devDependencies": {
+    "@herb-tools/linter": "^0.8.5"
   }
 }

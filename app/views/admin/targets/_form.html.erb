@@ -42,9 +42,9 @@
       <% (@target.custom_headers.presence || {}).each do |key, value| %>
         <div class="flex gap-2 items-center" data-headers-target="row">
           <input type="text" name="target[custom_headers_keys][]" value="<%= key %>"
-                 class="input input-bordered input-sm flex-1" placeholder="Header Name" />
+                 class="input input-bordered input-sm flex-1" placeholder="Header Name" autocomplete="off">
           <input type="text" name="target[custom_headers_values][]" value="<%= value %>"
-                 class="input input-bordered input-sm flex-1" placeholder="Header Value" />
+                 class="input input-bordered input-sm flex-1" placeholder="Header Value" autocomplete="off">
           <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="click->headers#remove">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -55,9 +55,9 @@
       <template data-headers-target="template">
         <div class="flex gap-2 items-center" data-headers-target="row">
           <input type="text" name="target[custom_headers_keys][]" value=""
-                 class="input input-bordered input-sm flex-1" placeholder="Header Name" />
+                 class="input input-bordered input-sm flex-1" placeholder="Header Name" autocomplete="off">
           <input type="text" name="target[custom_headers_values][]" value=""
-                 class="input input-bordered input-sm flex-1" placeholder="Header Value" />
+                 class="input input-bordered input-sm flex-1" placeholder="Header Value" autocomplete="off">
           <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="click->headers#remove">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -110,14 +110,14 @@
             <option value="payload">Payload</option>
           </select>
           <input type="text" name="target[filters_attributes][NEW_INDEX][field]"
-                 placeholder="Field" class="input input-bordered input-sm col-span-4 font-mono" />
+                 placeholder="Field" class="input input-bordered input-sm col-span-4 font-mono" autocomplete="off">
           <select name="target[filters_attributes][NEW_INDEX][operator]" class="select select-bordered select-sm col-span-2">
             <option value="exists">Exists</option>
             <option value="equals">Equals</option>
             <option value="matches">Matches</option>
           </select>
           <input type="text" name="target[filters_attributes][NEW_INDEX][value]"
-                 placeholder="Value" class="input input-bordered input-sm col-span-3" />
+                 placeholder="Value" class="input input-bordered input-sm col-span-3" autocomplete="off">
           <button type="button" class="btn btn-ghost btn-sm btn-square col-span-1" data-action="click->filters#remove">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
