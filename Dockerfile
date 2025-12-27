@@ -5,7 +5,7 @@
 # docker build -t hookshot .
 # docker run -d -p 3000:3000 -e RAILS_MASTER_KEY=<value from config/master.key> --name hookshot hookshot
 
-ARG RUBY_VERSION=3.4.7
+ARG RUBY_VERSION=4.0
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
