@@ -4,6 +4,7 @@
     "config:recommended"
   ],
   "includePaths": [
+    ".ruby-version",
     "Gemfile",
     "package.json",
     ".github/workflows/**"
