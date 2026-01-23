@@ -72,6 +72,7 @@ rails server
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `TZ` | `UTC` | Timezone for displaying timestamps (e.g., `Europe/Warsaw`, `America/New_York`) |
 | `HOOKSHOT_USER` | `admin` | HTTP Basic Auth username for admin UI |
 | `HOOKSHOT_PASSWORD` | `changeme` | HTTP Basic Auth password for admin UI |
 | `RETENTION_DAYS` | `30` | Days to retain webhook data before cleanup |
