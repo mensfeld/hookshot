@@ -28,7 +28,6 @@ gem "kaminari"
 
 group :development, :test do
   gem "debug"
-  gem "rubocop-rails-omakase", require: false
   gem "rspec-rails"
   gem "factory_bot_rails"
   gem "simplecov"
