@@ -13,9 +13,24 @@ class DispatchJob < ApplicationJob
 
   limits_concurrency to: 10, key: ->(_job) { "dispatch" }
 
-  retry_on StandardError, wait: :polynomially_longer, attempts: 5
   discard_on ActiveRecord::RecordNotFound
   discard_on ClientError
+
+  retry_on StandardError, attempts: Delivery::ACTIVEJOB_MAX_ATTEMPTS, wait: lambda { |executions|
+    Delivery::RETRY_SCHEDULE[executions - 1] || 30.seconds
+  } do |_job, exception|
+    # This block runs after all retry attempts are exhausted
+    delivery = Delivery.find(arguments.first)
+
+    # Transition to recurring job phase if we've exhausted ActiveJob attempts
+    if delivery.ready_for_recurring_phase?
+      delivery.transition_to_recurring_phase!
+      Rails.logger.info "[DispatchJob] Transitioned delivery #{delivery.id} to recurring job phase"
+    end
+
+    # Re-raise to let the job framework handle it
+    raise exception
+  end
 
   # Performs the webhook delivery.
   # @param delivery_id [Integer] ID of the delivery record to process
@@ -25,6 +40,8 @@ class DispatchJob < ApplicationJob
     return if delivery.success? || delivery.filtered?
 
     delivery.increment_attempts!
+    Rails.logger.info "[DispatchJob] Delivery #{delivery.id} attempt #{delivery.attempts}/#{Delivery::MAX_TOTAL_ATTEMPTS}"
+
     result = execute_dispatch(delivery)
     update_delivery(delivery, result)
 
@@ -61,6 +78,7 @@ class DispatchJob < ApplicationJob
       "Content-Type" => webhook.content_type,
       "X-Hookshot-Webhook-Id" => webhook.id.to_s,
       "X-Hookshot-Delivery-Id" => delivery.id.to_s,
+      "X-Hookshot-Attempt" => delivery.attempts.to_s,
       "User-Agent" => "Hookshot/1.0"
     }
 
