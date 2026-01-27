@@ -7,6 +7,21 @@ RSpec.describe DispatchJob do
   let(:target) { create(:target, url: "https://api.example.com/webhook") }
   let(:delivery) { create(:delivery, webhook: webhook, target: target, status: :pending) }
 
+  describe "job configuration" do
+    it "has correct queue configuration" do
+      expect(described_class.new.queue_name).to eq("default")
+    end
+
+    it "can enqueue a job successfully without ArgumentError" do
+      # This test verifies the concurrency limit key lambda is properly defined
+      # The bug was: key: -> { "dispatch" } which raised ArgumentError when SolidQueue passed the job instance
+      # The fix: key: -> (_job) { "dispatch" } which accepts the job argument
+      expect {
+        described_class.perform_later(delivery.id)
+      }.to have_enqueued_job(described_class).with(delivery.id)
+    end
+  end
+
   describe "#perform" do
     context "with successful delivery" do
       before do

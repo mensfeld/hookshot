@@ -11,7 +11,7 @@ class DispatchJob < ApplicationJob
 
   queue_as :default
 
-  limits_concurrency to: 10, key: -> { "dispatch" }
+  limits_concurrency to: 10, key: ->(_job) { "dispatch" }
 
   retry_on StandardError, wait: :polynomially_longer, attempts: 5
   discard_on ActiveRecord::RecordNotFound
