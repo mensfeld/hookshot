@@ -7,6 +7,26 @@ RSpec.describe DispatchJob do
   let(:target) { create(:target, url: "https://api.example.com/webhook") }
   let(:delivery) { create(:delivery, webhook: webhook, target: target, status: :pending) }
 
+  describe "job configuration" do
+    it "has correct queue configuration" do
+      expect(described_class.new.queue_name).to eq("default")
+    end
+
+    it "can enqueue a job successfully" do
+      expect {
+        described_class.perform_later(delivery.id)
+      }.to have_enqueued_job(described_class).with(delivery.id)
+    end
+
+    it "has concurrency limit with working key lambda" do
+      # The key lambda receives the job instance as an argument
+      # This test ensures the lambda accepts the argument without raising ArgumentError
+      job = described_class.new
+      concurrency_key = described_class.concurrency_key(job)
+      expect(concurrency_key).to eq("dispatch")
+    end
+  end
+
   describe "#perform" do
     context "with successful delivery" do
       before do
