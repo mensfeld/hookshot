@@ -10,19 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_21_155358) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_27_160104) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "dispatched_at"
     t.string "error_message"
+    t.datetime "last_retry_at"
+    t.datetime "next_retry_at"
     t.text "response_body"
+    t.integer "retry_stage", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.integer "status_code"
     t.integer "target_id", null: false
     t.datetime "updated_at", null: false
     t.integer "webhook_id", null: false
     t.index ["created_at"], name: "index_deliveries_on_created_at"
+    t.index ["status", "next_retry_at"], name: "index_deliveries_on_failed_with_retry", where: "status = 2 AND next_retry_at IS NOT NULL"
     t.index ["status"], name: "index_deliveries_on_status"
     t.index ["target_id"], name: "index_deliveries_on_target_id"
     t.index ["webhook_id", "target_id"], name: "index_deliveries_on_webhook_id_and_target_id"

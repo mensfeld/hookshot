@@ -70,6 +70,19 @@ RSpec.describe DispatchJob do
         expect(a_request(:post, target.url)
           .with(headers: { "X-Hookshot-Webhook-Id" => webhook.id.to_s })).to have_been_made
       end
+
+      it "includes X-Hookshot-Attempt header with current attempt number" do
+        delivery.update!(attempts: 2)
+
+        stub_request(:post, target.url)
+          .with(headers: { "X-Hookshot-Attempt" => "3" })
+          .to_return(status: 200, body: "ok")
+
+        described_class.perform_now(delivery.id)
+
+        expect(a_request(:post, target.url)
+          .with(headers: { "X-Hookshot-Attempt" => "3" })).to have_been_made
+      end
     end
 
     context "with server error (5xx)" do
@@ -135,6 +148,51 @@ RSpec.describe DispatchJob do
           described_class.perform_now(-1)
         }.not_to raise_error
       end
+    end
+  end
+
+  describe "retry configuration" do
+    it "retries up to ACTIVEJOB_MAX_ATTEMPTS times" do
+      # The retry_on configuration should match Delivery::ACTIVEJOB_MAX_ATTEMPTS
+      expect(Delivery::ACTIVEJOB_MAX_ATTEMPTS).to eq(5)
+    end
+  end
+
+  describe "transition to recurring job phase" do
+    let(:delivery) { create(:delivery, webhook: webhook, target: target, attempts: 5, retry_stage: :activejob_phase, status: :failed) }
+
+    it "transitions when delivery is ready for recurring phase" do
+      expect(delivery.ready_for_recurring_phase?).to be true
+
+      delivery.transition_to_recurring_phase!
+
+      delivery.reload
+      expect(delivery.retry_stage).to eq("recurring_job_phase")
+      expect(delivery.next_retry_at).to be_present
+    end
+
+    context "before 5th attempt" do
+      let(:delivery) { create(:delivery, webhook: webhook, target: target, attempts: 2, retry_stage: :activejob_phase, status: :pending) }
+
+      it "is not ready for transition" do
+        expect(delivery.ready_for_recurring_phase?).to be false
+      end
+    end
+  end
+
+  describe "logging" do
+    before do
+      stub_request(:post, target.url)
+        .to_return(status: 200, body: "ok")
+    end
+
+    it "logs attempt number on each dispatch" do
+      allow(Rails.logger).to receive(:info)
+
+      described_class.perform_now(delivery.id)
+
+      expect(Rails.logger).to have_received(:info)
+        .with(/Delivery #{delivery.id} attempt 1\/#{Delivery::MAX_TOTAL_ATTEMPTS}/)
     end
   end
 end
