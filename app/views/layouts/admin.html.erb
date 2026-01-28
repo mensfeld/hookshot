@@ -31,6 +31,8 @@
             class: "btn btn-sm #{controller_name == 'dispatches' ? 'btn-primary' : 'btn-outline'}" %>
         <%= link_to "Targets", admin_targets_path,
             class: "btn btn-sm #{controller_name == 'targets' ? 'btn-primary' : 'btn-outline'}" %>
+        <%= link_to "Errors", errors_path,
+            class: "btn btn-sm #{controller_name == 'errors' ? 'btn-primary' : 'btn-outline'}" %>
         <%= link_to "Jobs", "/jobs",
             class: "btn btn-sm btn-outline" %>
       </div>
@@ -64,6 +66,7 @@
           <li><%= link_to "Webhooks", admin_webhooks_path %></li>
           <li><%= link_to "Dispatches", admin_dispatches_path %></li>
           <li><%= link_to "Targets", admin_targets_path %></li>
+          <li><%= link_to "Errors", errors_path %></li>
           <li><%= link_to "Jobs", "/jobs" %></li>
           <li class="menu-title mt-2">Stats</li>
           <li><span class="text-xs"><%= stats[:webhooks_today] %> webhooks today</span></li>
