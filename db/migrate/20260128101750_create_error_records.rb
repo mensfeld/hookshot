@@ -1,4 +1,6 @@
+# Creates the error_records table for error tracking system.
 class CreateErrorRecords < ActiveRecord::Migration[7.2]
+  # Creates error_records table with fingerprint-based deduplication indexes.
   def change
     create_table :error_records do |t|
       t.string :error_class, null: false
@@ -16,6 +18,6 @@ class CreateErrorRecords < ActiveRecord::Migration[7.2]
     add_index :error_records, :fingerprint, unique: true
     add_index :error_records, :resolved_at
     add_index :error_records, :last_occurred_at
-    add_index :error_records, [:resolved_at, :last_occurred_at]
+    add_index :error_records, [ :resolved_at, :last_occurred_at ]
   end
 end

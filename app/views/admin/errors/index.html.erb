@@ -1,7 +1,7 @@
 <div class="flex justify-between items-center mb-4">
   <h1 class="text-xl font-bold">Application Errors</h1>
 
-  <% if @tab == :resolved && Admin::ErrorRecord.resolved.any? %>
+  <% if @tab == :resolved && ErrorRecord.resolved.any? %>
     <%= button_to "Delete All Resolved", destroy_all_errors_path,
         method: :delete,
         class: "btn btn-error btn-sm",

@@ -8,29 +8,4 @@ class ApplicationJob < ActiveJob::Base
 
   # Most jobs are safe to ignore if the underlying records are no longer available
   # discard_on ActiveJob::DeserializationError
-
-  around_perform :capture_errors
-
-  private
-
-  def capture_errors
-    yield
-  rescue StandardError => e
-    # EXCLUDE DispatchJob - those are operational errors tracked via Delivery model
-    return if is_a?(DispatchJob)
-
-    context = {
-      job_class: self.class.name,
-      job_id: job_id,
-      queue_name: queue_name,
-      arguments: arguments.map(&:to_s),
-      executions: executions
-    }
-
-    Admin::ErrorCaptureJob.perform_later(
-      e.class.name, e.message, e.backtrace || [], context
-    ) rescue nil
-
-    raise e  # Re-raise for ActiveJob retry logic
-  end
 end

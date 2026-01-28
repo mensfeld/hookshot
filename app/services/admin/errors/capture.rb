@@ -1,9 +1,18 @@
 module Admin
+  # Error tracking services module.
   module Errors
+    # Service for capturing and storing application errors with deduplication.
+    # Generates fingerprints for error deduplication and sanitizes sensitive context data.
     class Capture
+      # Sensitive context keys that should be redacted.
       SENSITIVE_KEYS = %w[password token secret authorization api_key].freeze
+      # Maximum size for context JSON in bytes.
       MAX_CONTEXT_SIZE = 10_240 # 10KB
 
+      # Captures an error by creating or updating an ErrorRecord.
+      # @param exception [Exception] the error to capture
+      # @param context [Hash] additional context about the error
+      # @return [ErrorRecord, nil] the error record, or nil if capture failed
       def self.call(exception, context: {})
         new(exception, context).call
       rescue StandardError => e
@@ -11,16 +20,21 @@ module Admin
         nil
       end
 
+      # Initializes a new capture service.
+      # @param exception [Exception] the error to capture
+      # @param context [Hash] additional context about the error
       def initialize(exception, context = {})
         @exception = exception
         @context = context
       end
 
+      # Performs the error capture operation.
+      # @return [ErrorRecord, nil] the error record, or nil if capture failed
       def call
         fingerprint = generate_fingerprint
 
-        Admin::ErrorRecord.transaction do
-          record = Admin::ErrorRecord.find_or_initialize_by(fingerprint: fingerprint)
+        ErrorRecord.transaction do
+          record = ErrorRecord.find_or_initialize_by(fingerprint: fingerprint)
 
           if record.new_record?
             record.assign_attributes(
@@ -50,28 +64,38 @@ module Admin
 
       private
 
+      # Generates a SHA256 fingerprint for error deduplication.
+      # @return [String] the fingerprint hex digest
       def generate_fingerprint
         cleaned_message = clean_message(@exception.message.to_s)
         raw = "#{@exception.class.name}:#{cleaned_message}"
         Digest::SHA256.hexdigest(raw)
       end
 
+      # Normalizes dynamic values in error messages for deduplication.
+      # Replaces UUIDs, hex addresses, paths, and numbers with placeholders.
+      # @param message [String] the error message to clean
+      # @return [String] the normalized message
       def clean_message(message)
         message
-          .gsub(/\b\d+\b/, 'N')                           # Numbers -> N
-          .gsub(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i, 'UUID')  # UUIDs
-          .gsub(/0x[0-9a-f]+/i, '0xHEX')                  # Hex addresses
-          .gsub(%r{/tmp/[^\s]+}, '/tmp/PATH')             # Temp paths
+          .gsub(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i, "UUID")  # UUIDs (before numbers!)
+          .gsub(/0x[0-9a-f]+/i, "0xHEX")                  # Hex addresses (before numbers!)
+          .gsub(%r{/tmp/[^\s]+}, "/tmp/PATH")             # Temp paths
+          .gsub(/\b\d+\b/, "N")                           # Numbers -> N (last!)
       end
 
+      # Cleans the backtrace by removing gem paths and limiting lines.
+      # @return [Array<String>] the cleaned backtrace lines
       def clean_backtrace
         return [] unless @exception.backtrace
 
         @exception.backtrace
-          .reject { |line| line.include?('/gems/') || line.include?('/rubygems/') }
+          .reject { |line| line.include?("/gems/") || line.include?("/rubygems/") }
           .take(50)
       end
 
+      # Sanitizes context by redacting sensitive keys and truncating large values.
+      # @return [Hash] the sanitized context
       def sanitize_context
         sanitized = deep_sanitize(@context)
         json = sanitized.to_json
@@ -84,12 +108,15 @@ module Admin
         end
       end
 
+      # Recursively sanitizes an object by redacting sensitive keys.
+      # @param obj [Object] the object to sanitize
+      # @return [Object] the sanitized object
       def deep_sanitize(obj)
         case obj
         when Hash
           obj.each_with_object({}) do |(key, value), result|
             if SENSITIVE_KEYS.any? { |sensitive| key.to_s.downcase.include?(sensitive) }
-              result[key] = '[REDACTED]'
+              result[key] = "[REDACTED]"
             else
               result[key] = deep_sanitize(value)
             end
