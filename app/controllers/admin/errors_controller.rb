@@ -1,5 +1,5 @@
 module Admin
-  class ErrorRecordsController < AdminController
+  class ErrorsController < AdminController
     before_action :set_error_record, only: %i[show resolve unresolve destroy]
 
     def index

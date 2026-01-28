@@ -34,7 +34,7 @@ Rails.application.routes.draw do
 
   # Errors route (simpler path but still uses Admin namespace)
   scope module: :admin do
-    resources :errors, controller: :error_records, only: %i[index show destroy] do
+    resources :errors, only: %i[index show destroy] do
       member do
         post :resolve
         post :unresolve
