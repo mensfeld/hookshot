@@ -1,0 +1,93 @@
+<div class="flex justify-between items-center mb-4">
+  <h1 class="text-xl font-bold">Application Errors</h1>
+
+  <% if @tab == :resolved && Admin::ErrorRecord.resolved.any? %>
+    <%= button_to "Delete All Resolved", destroy_all_errors_path,
+        method: :delete,
+        class: "btn btn-error btn-sm",
+        form: { data: { turbo_confirm: "Are you sure you want to delete all resolved errors?" } } %>
+  <% end %>
+</div>
+
+<!-- Tabs -->
+<div class="tabs tabs-boxed mb-4">
+  <%= link_to "Unresolved", errors_path(tab: :unresolved),
+      class: "tab #{@tab == :unresolved ? 'tab-active' : ''}" %>
+  <%= link_to "Resolved", errors_path(tab: :resolved),
+      class: "tab #{@tab == :resolved ? 'tab-active' : ''}" %>
+  <%= link_to "All", errors_path(tab: :all),
+      class: "tab #{@tab == :all ? 'tab-active' : ''}" %>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300">
+  <% if @error_records.any? %>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr class="border-b border-base-300">
+            <th>Error</th>
+            <th>Message</th>
+            <th>Occurrences</th>
+            <th>First Seen</th>
+            <th>Last Seen</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @error_records.each do |error| %>
+            <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" onclick="window.location='<%= error_path(error) %>'">
+              <td class="font-mono text-sm"><%= error.error_class.split('::').last %></td>
+              <td class="text-sm max-w-md truncate">
+                <%= error.message.to_s.truncate(60) %>
+              </td>
+              <td>
+                <span class="badge badge-sm <%= error.occurrences_count > 10 ? 'badge-error' : 'badge-warning' %>">
+                  <%= error.occurrences_count %>
+                </span>
+              </td>
+              <td class="text-sm">
+                <div><%= error.first_occurred_at.strftime("%Y-%m-%d") %></div>
+                <div class="text-xs text-base-content/60"><%= error.first_occurred_at.strftime("%H:%M:%S") %></div>
+              </td>
+              <td class="text-sm">
+                <div><%= error.last_occurred_at.strftime("%Y-%m-%d") %></div>
+                <div class="text-xs text-base-content/60"><%= error.last_occurred_at.strftime("%H:%M:%S") %></div>
+              </td>
+              <td>
+                <% if error.resolved? %>
+                  <span class="badge badge-success badge-sm">Resolved</span>
+                <% else %>
+                  <span class="badge badge-error badge-sm">Unresolved</span>
+                <% end %>
+              </td>
+              <td class="text-right">
+                <%= link_to "View", error_path(error), class: "btn btn-ghost btn-xs" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-center p-4 border-t border-base-300">
+      <%= paginate @error_records %>
+    </div>
+  <% else %>
+    <div class="text-center py-12 text-base-content/60">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="font-medium">
+        <% if @tab == :unresolved %>
+          No unresolved errors
+        <% elsif @tab == :resolved %>
+          No resolved errors
+        <% else %>
+          No errors captured yet
+        <% end %>
+      </p>
+      <p class="text-sm mt-1">Application errors will appear here when they occur</p>
+    </div>
+  <% end %>
+</div>

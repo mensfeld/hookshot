@@ -32,6 +32,19 @@ Rails.application.routes.draw do
     end
   end
 
+  # Errors route (simpler path but still uses Admin namespace)
+  scope module: :admin do
+    resources :errors, controller: :error_records, only: %i[index show destroy] do
+      member do
+        post :resolve
+        post :unresolve
+      end
+      collection do
+        delete :destroy_all
+      end
+    end
+  end
+
   # Root redirects to admin webhooks
   root to: redirect("/admin/webhooks")
 end

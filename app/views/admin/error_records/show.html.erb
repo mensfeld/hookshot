@@ -1,0 +1,75 @@
+<div class="flex justify-between items-center mb-4">
+  <div class="flex gap-3 items-center">
+    <%= link_to errors_path, class: "btn btn-ghost btn-sm btn-square" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-xl font-bold"><%= @error_record.error_class %></h1>
+    <% if @error_record.resolved? %>
+      <span class="badge badge-success">Resolved</span>
+    <% else %>
+      <span class="badge badge-error">Unresolved</span>
+    <% end %>
+    <span class="badge badge-lg <%= @error_record.occurrences_count > 10 ? 'badge-error' : 'badge-warning' %>">
+      <%= @error_record.occurrences_count %> occurrences
+    </span>
+  </div>
+  <div class="flex gap-2">
+    <% if @error_record.resolved? %>
+      <%= button_to "Mark Unresolved", unresolve_error_path(@error_record),
+          method: :post, class: "btn btn-warning btn-sm" %>
+    <% else %>
+      <%= button_to "Mark Resolved", resolve_error_path(@error_record),
+          method: :post, class: "btn btn-success btn-sm" %>
+    <% end %>
+    <%= button_to "Delete", error_path(@error_record),
+        method: :delete, class: "btn btn-error btn-outline btn-sm",
+        data: { turbo_confirm: "Delete this error record?" } %>
+  </div>
+</div>
+
+<!-- Message -->
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="text-base-content/60 text-xs uppercase tracking-wide mb-2">Error Message</div>
+  <pre class="text-sm font-mono bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all"><%= @error_record.message || "(no message)" %></pre>
+</div>
+
+<!-- Timeline -->
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">First Occurred</div>
+      <div class="font-medium"><%= @error_record.first_occurred_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Last Occurred</div>
+      <div class="font-medium"><%= @error_record.last_occurred_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Resolved At</div>
+      <div class="font-medium"><%= @error_record.resolved_at&.strftime("%Y-%m-%d %H:%M:%S") || "Not resolved" %></div>
+    </div>
+  </div>
+</div>
+
+<!-- Backtrace -->
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="text-base-content/60 text-xs uppercase tracking-wide mb-2">Backtrace</div>
+  <% if @error_record.backtrace.present? %>
+    <pre class="text-xs font-mono bg-base-200 p-3 rounded-box overflow-x-auto max-h-96"><% @error_record.backtrace_lines.each do |line| %><%= line.include?('/app/') ? "<span class='text-warning'>#{line}</span>".html_safe : line %>
+<% end %></pre>
+  <% else %>
+    <div class="text-base-content/60 text-sm">No backtrace available</div>
+  <% end %>
+</div>
+
+<!-- Context -->
+<div class="bg-base-100 rounded-box border border-base-300 p-4">
+  <div class="text-base-content/60 text-xs uppercase tracking-wide mb-2">Context</div>
+  <% if @error_record.context.present? && @error_record.context.any? %>
+    <pre class="text-xs font-mono bg-base-200 p-3 rounded-box overflow-x-auto max-h-96"><%= JSON.pretty_generate(@error_record.context) %></pre>
+  <% else %>
+    <div class="text-base-content/60 text-sm">No context available</div>
+  <% end %>
+</div>
