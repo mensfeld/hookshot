@@ -1,5 +1,8 @@
 # Hookshot changelog
 
+## Unreleased
+- [Feature] Add case-insensitive text search to webhooks index for filtering by headers or payload content.
+
 ## 1.1.0 (2026-01-28)
 - [Feature] Add self-contained error tracking system with Rails 8 error reporter integration.
 - [Feature] Error deduplication by fingerprint with automatic occurrence counting.

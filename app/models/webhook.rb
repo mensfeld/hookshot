@@ -10,6 +10,15 @@ class Webhook < ApplicationRecord
 
   scope :today, -> { where("received_at >= ?", Time.current.beginning_of_day) }
   scope :older_than, ->(days) { where("received_at < ?", days.days.ago) }
+  scope :search_text, ->(term) {
+    return all if term.blank?
+
+    where(
+      "json_quote(headers) LIKE ? OR payload LIKE ?",
+      "%#{sanitize_sql_like(term)}%",
+      "%#{sanitize_sql_like(term)}%"
+    )
+  }
 
   # Returns the size of the payload in bytes.
   # @return [Integer] payload size in bytes, or 0 if payload is nil
