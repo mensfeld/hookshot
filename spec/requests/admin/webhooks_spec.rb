@@ -50,6 +50,94 @@ RSpec.describe "Admin Webhooks" do
 
       expect(response).to have_http_status(:ok)
     end
+
+    context "text search" do
+      it "finds webhooks by payload content" do
+        matching = create(:webhook, payload: '{"event":"user.created","user_id":123}')
+        non_matching = create(:webhook, payload: '{"event":"order.completed"}')
+
+        get "/admin/webhooks", params: { q: "user.created" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(matching.id.to_s)
+        expect(response.body).not_to include("webhook-#{non_matching.id}")
+      end
+
+      it "finds webhooks by header content" do
+        matching = create(:webhook, headers: { "HTTP_X_API_KEY" => "secret-key-123" })
+        non_matching = create(:webhook, headers: { "HTTP_X_API_KEY" => "other-key" })
+
+        get "/admin/webhooks", params: { q: "secret-key-123" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(matching.id.to_s)
+        expect(response.body).not_to include("webhook-#{non_matching.id}")
+      end
+
+      it "performs case-insensitive search" do
+        webhook = create(:webhook, payload: '{"Event":"USER.CREATED"}')
+
+        get "/admin/webhooks", params: { q: "user.created" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(webhook.id.to_s)
+      end
+
+      it "searches both headers and payload" do
+        webhook_with_header = create(:webhook,
+          headers: { "HTTP_X_SEARCH" => "findme" },
+          payload: '{"event":"test"}')
+        webhook_with_payload = create(:webhook,
+          headers: { "HTTP_X_API" => "key" },
+          payload: '{"data":"findme"}')
+        non_matching = create(:webhook)
+
+        get "/admin/webhooks", params: { q: "findme" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(webhook_with_header.id.to_s)
+        expect(response.body).to include(webhook_with_payload.id.to_s)
+        expect(response.body).not_to include("webhook-#{non_matching.id}")
+      end
+
+      it "returns all webhooks when search term is empty" do
+        create_list(:webhook, 3)
+
+        get "/admin/webhooks", params: { q: "" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to match(/webhook/i)
+      end
+
+      it "combines with date filters" do
+        old_matching = create(:webhook,
+          received_at: 10.days.ago,
+          payload: '{"search":"term"}')
+        new_matching = create(:webhook,
+          received_at: 1.day.ago,
+          payload: '{"search":"term"}')
+        new_non_matching = create(:webhook,
+          received_at: 1.day.ago,
+          payload: '{"other":"data"}')
+
+        get "/admin/webhooks",
+          params: { q: "search", date_from: 5.days.ago.to_date },
+          headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(new_matching.id.to_s)
+        expect(response.body).not_to include("webhook-#{old_matching.id}")
+        expect(response.body).not_to include("webhook-#{new_non_matching.id}")
+      end
+
+      it "handles special characters safely" do
+        webhook = create(:webhook, payload: '{"data":"test%value"}')
+
+        get "/admin/webhooks", params: { q: "test%" }, headers: auth_headers
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
   end
 
   describe "GET /admin/webhooks/:id" do

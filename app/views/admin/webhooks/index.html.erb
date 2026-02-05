@@ -1,7 +1,13 @@
 <div class="flex justify-between items-center mb-4">
   <h1 class="text-xl font-bold">Webhooks</h1>
 
-  <%= form_with url: admin_webhooks_path, method: :get, class: "flex gap-2 items-end" do %>
+  <%= form_with url: admin_webhooks_path, method: :get, class: "flex gap-2 items-end flex-wrap" do %>
+    <label class="form-control">
+      <span class="label-text text-xs mb-1">Search</span>
+      <%= text_field_tag :q, params[:q],
+          class: "input input-bordered input-sm w-64",
+          placeholder: "Search headers or payload..." %>
+    </label>
     <label class="form-control">
       <span class="label-text text-xs mb-1">From</span>
       <%= date_field_tag :date_from, params[:date_from], class: "input input-bordered input-sm" %>
@@ -11,7 +17,7 @@
       <%= date_field_tag :date_to, params[:date_to], class: "input input-bordered input-sm" %>
     </label>
     <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-    <% if params[:date_from].present? || params[:date_to].present? %>
+    <% if params[:q].present? || params[:date_from].present? || params[:date_to].present? %>
       <%= link_to "Clear", admin_webhooks_path, class: "btn btn-ghost btn-sm" %>
     <% end %>
   <% end %>

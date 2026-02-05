@@ -10,6 +10,7 @@ module Admin
     def index
       @webhooks = Webhook.includes(:deliveries).order(received_at: :desc)
       @webhooks = filter_by_date(@webhooks)
+      @webhooks = filter_by_search(@webhooks)
       @webhooks = @webhooks.page(params[:page]).per(50)
     end
 
@@ -48,6 +49,15 @@ module Admin
       scope = scope.where("received_at >= ?", params[:date_from]) if params[:date_from].present?
       scope = scope.where("received_at <= ?", params[:date_to].to_date.end_of_day) if params[:date_to].present?
       scope
+    end
+
+    # Applies text search filter to the webhook scope.
+    # @param scope [ActiveRecord::Relation] the base query scope
+    # @return [ActiveRecord::Relation] filtered scope
+    def filter_by_search(scope)
+      return scope if params[:q].blank?
+
+      scope.search_text(params[:q])
     end
   end
 end
