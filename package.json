@@ -17,6 +17,7 @@
     "daisyui": "^5.5.14"
   },
   "devDependencies": {
-    "@herb-tools/linter": "^0.8.5"
+    "@herb-tools/linter": "^0.8.5",
+    "lostconf": "0.4.0"
   }
 }
