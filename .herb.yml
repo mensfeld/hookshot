@@ -1,7 +1,7 @@
 # Herb configuration
 # Documentation: https://herb-tools.dev
 
-version: 0.8.5
+version: 0.9.0
 
 files:
   include:
@@ -18,6 +18,8 @@ linter:
     erb-prefer-image-tag-helper:
       enabled: false
     html-no-underscores-in-attribute-names:
+      enabled: false
+    erb-no-instance-variables-in-partials:
       enabled: false
 
 formatter:
