@@ -36,7 +36,7 @@
         </thead>
         <tbody>
           <% @error_records.each do |error| %>
-            <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" onclick="window.location='<%= error_path(error) %>'">
+            <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" data-href="<%= error_path(error) %>" onclick="window.location=this.dataset.href">
               <td class="font-mono text-sm"><%= error.error_class.split('::').last %></td>
               <td class="text-sm max-w-md truncate">
                 <%= error.message.to_s.truncate(60) %>

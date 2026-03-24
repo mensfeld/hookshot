@@ -99,7 +99,7 @@
                 <td class="text-sm"><%= delivery.dispatched_at&.strftime("%Y-%m-%d %H:%M:%S") || '-' %></td>
                 <td>
                   <% if delivery.response_body.present? || delivery.error_message.present? %>
-                    <button class="btn btn-ghost btn-xs" onclick="document.getElementById('response_<%= delivery.id %>').showModal()">
+                    <button class="btn btn-ghost btn-xs" data-modal-id="<%= "response_#{delivery.id}" %>" onclick="document.getElementById(this.dataset.modalId).showModal()">
                       Details
                     </button>
                     <dialog id="response_<%= delivery.id %>" class="modal">

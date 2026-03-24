@@ -11,11 +11,10 @@
           <div class="flex items-center gap-4 flex-1 min-w-0">
             <%= form_with model: [:admin, target], local: true, class: "inline" do |f| %>
               <%= f.hidden_field :active, value: !target.active %>
-              <input type="checkbox"
-                     class="toggle toggle-success toggle-sm"
-                     <%= target.active? ? 'checked' : '' %>
-                     onchange="this.form.submit()"
-                     title="<%= target.active? ? 'Active' : 'Inactive' %>">
+              <%= check_box_tag nil, nil, target.active?,
+                     class: "toggle toggle-success toggle-sm",
+                     onchange: "this.form.submit()",
+                     title: target.active? ? 'Active' : 'Inactive' %>
             <% end %>
             <div class="min-w-0 flex-1">
               <h3 class="font-medium"><%= target.name %></h3>
