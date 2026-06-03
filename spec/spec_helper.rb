@@ -1,14 +1,15 @@
-Warning[:performance] = true if RUBY_VERSION >= '3.3'
-Warning[:deprecated] = true
+require 'warning'
+
 $VERBOSE = true
 
 if Warning.respond_to?(:categories)
   (Warning.categories - %i[experimental]).each do |cat|
     Warning[cat] = true
   end
+else
+  Warning[:deprecated] = true
+  Warning[:performance] = true if RUBY_VERSION >= '3.3'
 end
-
-require 'warning'
 
 Warning.process do |warning|
   next unless warning.include?(Dir.pwd)
