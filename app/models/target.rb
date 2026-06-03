@@ -7,7 +7,7 @@ class Target < ApplicationRecord
   has_many :deliveries, dependent: :nullify
 
   validates :name, :url, presence: true
-  validates :url, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]), message: "must be a valid HTTP(S) URL" }
+  validates :url, format: { with: URI::RFC2396_PARSER.make_regexp(%w[http https]), message: "must be a valid HTTP(S) URL" }
   validates :timeout, numericality: { greater_than: 0, less_than_or_equal_to: 300 }
 
   scope :active, -> { where(active: true) }
