@@ -1,5 +1,8 @@
 # Hookshot changelog
 
+## Unreleased
+- [Enhancement] Add Ruby warning category opt-in to test helpers
+
 ## 1.1.0 (2026-04-09)
 - [Feature] Add case-insensitive text search to webhooks index for filtering by headers or payload content.
 
