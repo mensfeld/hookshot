@@ -35,7 +35,7 @@ module Admin
       private
 
       # Value types that ActiveJob can serialize as-is.
-      PRIMITIVE_TYPES = [String, Symbol, Numeric, TrueClass, FalseClass, NilClass].freeze
+      PRIMITIVE_TYPES = [ String, Symbol, Numeric, TrueClass, FalseClass, NilClass ].freeze
 
       # Checks if the error originated from a DispatchJob.
       # @param context [Hash] the error context
