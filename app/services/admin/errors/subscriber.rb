@@ -34,6 +34,9 @@ module Admin
 
       private
 
+      # Value types that ActiveJob can serialize as-is.
+      PRIMITIVE_TYPES = [ String, Symbol, Numeric, TrueClass, FalseClass, NilClass ].freeze
+
       # Checks if the error originated from a DispatchJob.
       # @param context [Hash] the error context
       # @return [Boolean] true if this is a DispatchJob error
@@ -51,8 +54,26 @@ module Admin
           source: source,
           job: extract_job_context(context),
           controller: extract_controller_context(context),
-          additional: context.except(:job, :controller, :force_capture)
+          additional: sanitize(context.except(:job, :controller, :force_capture))
         }.compact
+      end
+
+      # Recursively reduces a value to types ActiveJob can serialize,
+      # stringifying anything else (e.g. live controller/request/model objects
+      # that Rails' automatic error context can include).
+      # @param value [Object] the value to sanitize
+      # @return [Object] a job-serializable value
+      def sanitize(value)
+        case value
+        when Hash
+          value.transform_values { |v| sanitize(v) }
+        when Array
+          value.map { |v| sanitize(v) }
+        when *PRIMITIVE_TYPES
+          value
+        else
+          value.to_s
+        end
       end
 
       # Extracts job-related context information.
@@ -76,10 +97,11 @@ module Admin
       def extract_controller_context(context)
         return nil unless context[:controller]
 
+        controller = context[:controller]
         {
-          name: context[:controller],
+          name: controller.is_a?(String) ? controller : controller.class.name,
           action: context[:action],
-          params: context[:params]
+          params: sanitize(context[:params])
         }
       end
     end

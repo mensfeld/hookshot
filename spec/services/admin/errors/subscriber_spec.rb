@@ -111,5 +111,47 @@ RSpec.describe Admin::Errors::Subscriber do
         subscriber.report(error, handled: false, severity: :error, context: { custom_key: "custom_value", force_capture: true }, source: "test")
       end
     end
+
+    context "with a live controller instance in context (Rails' automatic error context)" do
+      let(:controller) { Webhooks::ReceiveController.new }
+      let(:context) do
+        { controller: controller, action: "create", params: { id: 1 }, force_capture: true }
+      end
+
+      it "extracts the controller class name instead of the raw instance" do
+        expect(Admin::ErrorCaptureJob).to receive(:perform_later).with(
+          "StandardError",
+          "Test error",
+          [],
+          hash_including(controller: hash_including(name: "Webhooks::ReceiveController", action: "create"))
+        )
+
+        subscriber.report(error, handled: false, severity: :error, context: context, source: "test")
+      end
+
+      it "produces job arguments ActiveJob can actually serialize" do
+        captured_args = nil
+        allow(Admin::ErrorCaptureJob).to receive(:perform_later) { |*args| captured_args = args }
+
+        subscriber.report(error, handled: false, severity: :error, context: context, source: "test")
+
+        expect { ActiveJob::Arguments.serialize(captured_args) }.not_to raise_error
+      end
+    end
+
+    context "with non-primitive values nested in additional context" do
+      let(:context) { { custom: { nested: [ 1, :two, Object.new ] }, force_capture: true } }
+
+      it "stringifies non-primitive nested values" do
+        expect(Admin::ErrorCaptureJob).to receive(:perform_later).with(
+          "StandardError",
+          "Test error",
+          [],
+          hash_including(additional: hash_including(custom: hash_including(nested: [ 1, :two, kind_of(String) ])))
+        )
+
+        subscriber.report(error, handled: false, severity: :error, context: context, source: "test")
+      end
+    end
   end
 end

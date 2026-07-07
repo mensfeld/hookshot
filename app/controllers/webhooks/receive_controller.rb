@@ -20,7 +20,7 @@ module Webhooks
 
       webhook = Webhook.create!(
         headers: extract_headers,
-        payload: request.raw_post,
+        payload: to_utf8(request.raw_post),
         content_type: request.content_type || "application/octet-stream",
         source_ip: request.remote_ip,
         received_at: Time.current
@@ -38,9 +38,19 @@ module Webhooks
     # Extracts relevant headers from the request.
     # @return [Hash] filtered headers including HTTP_* and content headers
     def extract_headers
-      request.headers.to_h.select do |key, _|
-        key.start_with?("HTTP_") || %w[CONTENT_TYPE CONTENT_LENGTH].include?(key)
+      request.headers.to_h.each_with_object({}) do |(key, value), headers|
+        next unless key.start_with?("HTTP_") || %w[CONTENT_TYPE CONTENT_LENGTH].include?(key)
+
+        headers[key] = value.is_a?(String) ? to_utf8(value) : value
       end
+    end
+
+    # Forces a raw (often ASCII-8BIT) string to valid UTF-8, replacing any
+    # invalid or incomplete byte sequences instead of raising on them.
+    # @param string [String] the raw string to convert
+    # @return [String] a valid UTF-8 string
+    def to_utf8(string)
+      string.dup.force_encoding(Encoding::UTF_8).scrub
     end
   end
 end

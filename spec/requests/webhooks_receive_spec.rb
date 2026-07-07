@@ -103,6 +103,61 @@ RSpec.describe "POST /webhooks/receive" do
       end
     end
 
+    context "with multi-byte UTF-8 characters in the payload" do
+      let(:message) { "explicit [git] name/email) — use as-is, don't overwrite." }
+      let(:payload) { { message: message }.to_json }
+
+      it "creates the webhook without raising an encoding error" do
+        expect {
+          post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+        }.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "preserves the multi-byte characters" do
+        post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+
+        expect(Webhook.last.payload).to include("—")
+      end
+    end
+
+    context "with invalid UTF-8 byte sequences in the raw body" do
+      # Content-Type is deliberately not application/json here: Rails parses
+      # JSON bodies into params before the action runs, so an invalid-encoding
+      # payload would 400 out at that layer rather than exercising the
+      # controller's own raw_post handling.
+      let(:invalid_payload) { "note: broken \xE2 sequence".b }
+
+      it "does not raise an encoding error" do
+        expect {
+          post "/webhooks/receive", params: invalid_payload, headers: { "CONTENT_TYPE" => "application/octet-stream" }
+        }.not_to raise_error
+      end
+
+      it "stores the payload with invalid bytes scrubbed" do
+        post "/webhooks/receive", params: invalid_payload, headers: { "CONTENT_TYPE" => "application/octet-stream" }
+
+        expect(response).to have_http_status(:ok)
+        expect(Webhook.last.payload).to be_valid_encoding
+      end
+    end
+
+    context "with invalid UTF-8 byte sequences in a header value" do
+      let(:invalid_header) { "broken \xE2 header".b }
+
+      it "does not raise an encoding error" do
+        expect {
+          post "/webhooks/receive", params: payload, headers: {
+            "CONTENT_TYPE" => "application/json",
+            "HTTP_X_CUSTOM" => invalid_header
+          }
+        }.not_to raise_error
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
     context "with oversized payload" do
       before do
         stub_const("Webhooks::ReceiveController::MAX_PAYLOAD_SIZE", 100)
