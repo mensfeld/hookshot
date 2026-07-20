@@ -6,14 +6,14 @@ SimpleCov.start 'rails' do
   enable_coverage :branch
   minimum_coverage line: 85, branch: 85
 
-  add_filter '/spec/'
-  add_filter '/config/'
-  add_filter '/db/'
+  skip '/spec/'
+  skip '/config/'
+  skip '/db/'
 
-  add_group 'Models', 'app/models'
-  add_group 'Controllers', 'app/controllers'
-  add_group 'Services', 'app/services'
-  add_group 'Jobs', 'app/jobs'
+  group 'Models', 'app/models'
+  group 'Controllers', 'app/controllers'
+  group 'Services', 'app/services'
+  group 'Jobs', 'app/jobs'
 end
 
 # This file is copied to spec/ when you run 'rails generate rspec:install'
