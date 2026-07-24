@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# Represents a filter rule for a target.
-# Filters determine which webhooks should be delivered to a target based on
+# Represents a filter rule for a target. Filters determine which webhooks should be delivered to a target based on
 # header or payload content matching.
 class Filter < ApplicationRecord
   belongs_to :target
