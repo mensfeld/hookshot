@@ -9,9 +9,9 @@ class Delivery < ApplicationRecord
   enum :status, { pending: 0, success: 1, failed: 2, filtered: 3 }
   enum :retry_stage, { activejob_phase: 0, recurring_job_phase: 1 }
 
-  # Retry schedule: 10 attempts over ~40 hours
-  # Attempts 1-5: ActiveJob phase (30s, 2m, 5m, 15m, 30m)
-  # Attempts 6-10: Recurring job phase (1h, 2h, 4h, 8h, 24h)
+  # Retry schedule: 10 attempts over ~40 hours:
+  # - Attempts 1-5: ActiveJob phase (30s, 2m, 5m, 15m, 30m)
+  # - Attempts 6-10: Recurring job phase (1h, 2h, 4h, 8h, 24h)
   RETRY_SCHEDULE = [
     30.seconds,    # Attempt 1
     2.minutes,     # Attempt 2

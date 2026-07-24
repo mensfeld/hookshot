@@ -58,9 +58,8 @@ module Admin
         }.compact
       end
 
-      # Recursively reduces a value to types ActiveJob can serialize,
-      # stringifying anything else (e.g. live controller/request/model objects
-      # that Rails' automatic error context can include).
+      # Recursively reduces a value to types ActiveJob can serialize, stringifying anything else (e.g. live
+      # controller/request/model objects that Rails' automatic error context can include).
       # @param value [Object] the value to sanitize
       # @return [Object] a job-serializable value
       def sanitize(value)
