@@ -255,7 +255,7 @@ GEM
     securerandom (0.4.1)
     shoulda-matchers (8.0.1)
       activesupport (>= 7.2)
-    simplecov (1.0.3)
+    simplecov (1.1.1)
     solid_queue (1.6.0)
       activejob (>= 7.1)
       activerecord (>= 7.1)
