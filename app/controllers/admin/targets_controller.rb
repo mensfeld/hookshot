@@ -97,7 +97,7 @@ module Admin
         :name, :url, :active, :timeout,
         custom_headers_keys: [],
         custom_headers_values: [],
-        filters_attributes: %i[id filter_type field operator value _destroy]
+        filters_attributes: %i[id filter_type field operator value group_key _destroy]
       )
 
       # Convert custom_headers arrays to hash

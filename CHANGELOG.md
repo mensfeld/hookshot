@@ -1,7 +1,12 @@
 # Hookshot changelog
 
-## Unreleased
+## 1.2.0 (Unreleased)
+- [Feature] Add filter groups to targets: filters within a group must all match (AND) and a webhook is delivered when any group fully matches (OR). This lets one target express several alternative conditions instead of maintaining one target per condition.
+- [Feature] Admin target form gets a per-filter Group input with suggestions of existing groups; newly added rows default to the last used group.
+- [Enhancement] Target details page and targets index render the filter logic as an explicit OR of ANDs.
 - [Enhancement] Add Ruby warning category opt-in to test helpers
+- [Fix] Untouched filter rows (no field and no value) in the admin form are now dropped instead of failing target validation (the type/operator selects always carry values, so `all_blank` never rejected them). Partially filled rows and blanked fields on existing filters still report validation errors.
+- [Maintenance] Add `group_key` column to `filters` (defaults to `default`). Existing filters land in the default group, so existing targets keep their all-filters-must-match behavior. Run `bin/rails db:migrate` when upgrading.
 
 ## 1.1.0 (2026-04-09)
 - [Feature] Add case-insensitive text search to webhooks index for filtering by headers or payload content.

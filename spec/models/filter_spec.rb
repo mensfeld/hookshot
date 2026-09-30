@@ -7,6 +7,7 @@ RSpec.describe Filter do
     it { is_expected.to validate_presence_of(:filter_type) }
     it { is_expected.to validate_presence_of(:field) }
     it { is_expected.to validate_presence_of(:operator) }
+    it { is_expected.to validate_length_of(:group_key).is_at_most(Filter::GROUP_KEY_MAX_LENGTH) }
 
     describe "value presence" do
       context "with exists operator" do
@@ -69,6 +70,51 @@ RSpec.describe Filter do
       it "returns a readable description" do
         expect(filter.description).to eq("Payload '$.email' matches '*@example.com'")
       end
+    end
+  end
+
+  describe "#group_key" do
+    it "defaults to the default group" do
+      expect(described_class.new.group_key).to eq("default")
+    end
+
+    it "defaults to the default group when persisted without one" do
+      target = create(:target)
+      filter = described_class.create!(target: target, filter_type: :header, field: "X-Api-Key", operator: :exists)
+
+      expect(filter.reload.group_key).to eq("default")
+    end
+
+    it "normalizes a blank value to the default group" do
+      expect(build(:filter, group_key: "   ").group_key).to eq("default")
+    end
+
+    it "normalizes nil to the default group" do
+      expect(build(:filter, group_key: nil).group_key).to eq("default")
+    end
+
+    it "strips surrounding whitespace" do
+      expect(build(:filter, group_key: "  ci-fail \t").group_key).to eq("ci-fail")
+    end
+
+    it "preserves case" do
+      expect(build(:filter, group_key: "CI-Fail").group_key).to eq("CI-Fail")
+    end
+
+    it "persists the normalized value" do
+      filter = create(:filter, group_key: " ci-fail ")
+
+      expect(filter.reload.group_key).to eq("ci-fail")
+    end
+  end
+
+  describe "#default_group?" do
+    it "is true for the default group" do
+      expect(build(:filter)).to be_default_group
+    end
+
+    it "is false for a named group" do
+      expect(build(:filter, group_key: "ci-fail")).not_to be_default_group
     end
   end
 end
