@@ -1,6 +1,6 @@
 # Hookshot changelog
 
-## 1.2.0 (Unreleased)
+## 1.2.0 (2026-09-30)
 - [Feature] Add filter groups to targets: filters within a group must all match (AND) and a webhook is delivered when any group fully matches (OR). This lets one target express several alternative conditions instead of maintaining one target per condition.
 - [Feature] Admin target form gets a per-filter Group input with suggestions of existing groups; newly added rows default to the last used group.
 - [Enhancement] Target details page and targets index render the filter logic as an explicit OR of ANDs.
