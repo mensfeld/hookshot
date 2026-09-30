@@ -49,10 +49,6 @@
 <% if @target.filters.any? %>
   <div class="bg-base-100 rounded-box border border-base-300 p-4">
     <h3 class="font-medium mb-3">Filters</h3>
-    <div class="flex flex-wrap gap-2">
-      <% @target.filters.each do |filter| %>
-        <span class="badge badge-outline"><%= filter.description %></span>
-      <% end %>
-    </div>
+    <%= render "filter_groups", target: @target %>
   </div>
 <% end %>

@@ -2,6 +2,9 @@
 
 # Evaluates filter rules against a webhook to determine if it passes.
 # Supports header and payload filters with exists, equals, and matches operators.
+#
+# Filters are evaluated as an OR of ANDs: the webhook passes when at least one filter group has all of its filters
+# match. A target whose filters all share one group therefore behaves as a plain AND of those filters.
 class FilterEvaluator
   # Initializes a new filter evaluator.
   # @param webhook [Webhook] the webhook to evaluate
@@ -11,10 +14,13 @@ class FilterEvaluator
     @target = target
   end
 
-  # Checks if the webhook passes all filters for the target.
-  # @return [Boolean] true if all filters pass or no filters exist
+  # Checks if the webhook passes the target's filters.
+  # @return [Boolean] true if no filters exist or any filter group fully matches
   def passes?
-    @target.filters.all? { |filter| evaluate(filter) }
+    groups = @target.filter_groups
+    return true if groups.empty?
+
+    groups.each_value.any? { |group| group.all? { |filter| evaluate(filter) } }
   end
 
   private

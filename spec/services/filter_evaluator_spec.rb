@@ -185,5 +185,110 @@ RSpec.describe FilterEvaluator do
         expect(evaluator.passes?).to be false
       end
     end
+
+    context "with filter groups" do
+      let(:evaluator) { described_class.new(webhook, target) }
+
+      def github_webhook(event, payload)
+        create(:webhook, headers: { "HTTP_X_GITHUB_EVENT" => event }, payload: payload.to_json)
+      end
+
+      def add_filter(group_key, filter_type, field, operator, value = nil)
+        create(:filter, target: target, group_key: group_key, filter_type: filter_type,
+          field: field, operator: operator, value: value)
+      end
+
+      before do
+        add_filter("ci-fail", :header, "X-GitHub-Event", :equals, "check_suite")
+        add_filter("ci-fail", :payload, "$.check_suite.conclusion", :equals, "failure")
+        add_filter("changes-requested", :header, "X-GitHub-Event", :equals, "pull_request_review")
+        add_filter("changes-requested", :payload, "$.review.state", :equals, "changes_requested")
+      end
+
+      context "when one group fully matches and another does not" do
+        let(:webhook) { github_webhook("pull_request_review", { review: { state: "changes_requested" } }) }
+
+        it "passes (OR across groups)" do
+          expect(evaluator.passes?).to be true
+        end
+      end
+
+      context "when the first group fully matches" do
+        let(:webhook) { github_webhook("check_suite", { check_suite: { conclusion: "failure" } }) }
+
+        it "passes" do
+          expect(evaluator.passes?).to be true
+        end
+      end
+
+      context "when a group only partially matches and no other group matches" do
+        let(:webhook) { github_webhook("check_suite", { check_suite: { conclusion: "success" } }) }
+
+        it "does not pass (AND within a group)" do
+          expect(evaluator.passes?).to be false
+        end
+      end
+
+      context "when each group partially matches but none fully" do
+        let(:webhook) { github_webhook("check_suite", { review: { state: "changes_requested" } }) }
+
+        it "does not pass (matches are not combined across groups)" do
+          expect(evaluator.passes?).to be false
+        end
+      end
+
+      context "when no group matches at all" do
+        let(:webhook) { github_webhook("push", { ref: "refs/heads/master" }) }
+
+        it "does not pass" do
+          expect(evaluator.passes?).to be false
+        end
+      end
+
+      context "with a single-filter group alongside multi-filter groups" do
+        let(:webhook) { github_webhook("pull_request", { action: "opened" }) }
+
+        before { add_filter("any-pr", :header, "X-GitHub-Event", :equals, "pull_request") }
+
+        it "passes when the single-filter group matches" do
+          expect(evaluator.passes?).to be true
+        end
+      end
+
+      context "with group keys that differ only by surrounding whitespace" do
+        let(:webhook) { github_webhook("check_suite", { check_suite: { conclusion: "success" } }) }
+
+        before do
+          target.filters.where(group_key: "ci-fail").destroy_all
+          add_filter(" ci-fail ", :header, "X-GitHub-Event", :equals, "check_suite")
+          add_filter("ci-fail", :payload, "$.check_suite.conclusion", :equals, "failure")
+        end
+
+        it "treats them as one group" do
+          expect(evaluator.passes?).to be false
+        end
+      end
+    end
+
+    context "with all filters in the default group (backward compatibility)" do
+      let(:webhook) do
+        create(:webhook, headers: { "HTTP_X_API_KEY" => "secret123" }, payload: { event: "order.created" }.to_json)
+      end
+      let(:evaluator) { described_class.new(webhook, target) }
+
+      before do
+        create(:filter, :header_equals, target: target, value: "secret123")
+        create(:filter, :payload_equals, target: target, value: "order.created")
+      end
+
+      it "passes when all filters match" do
+        expect(evaluator.passes?).to be true
+      end
+
+      it "fails when any single filter fails" do
+        webhook.update!(headers: { "HTTP_X_API_KEY" => "wrong" })
+        expect(evaluator.passes?).to be false
+      end
+    end
   end
 end

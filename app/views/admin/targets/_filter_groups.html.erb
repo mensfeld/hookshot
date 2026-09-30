@@ -1,0 +1,30 @@
+<% groups = target.filter_groups %>
+<p class="text-sm text-base-content/60 mb-3">
+  <% if groups.size > 1 %>
+    Delivers if <strong>ANY</strong> group matches. Within a group, <strong>ALL</strong> filters must match.
+  <% else %>
+    Delivers if <strong>ALL</strong> filters match.
+  <% end %>
+</p>
+<div class="space-y-2">
+  <% groups.each_with_index do |(group_key, filters), index| %>
+    <% if index.positive? %>
+      <div class="text-xs font-semibold uppercase tracking-wide text-base-content/60 pl-2">or</div>
+    <% end %>
+    <div class="flex flex-col md:flex-row gap-2 md:gap-4 bg-base-200 rounded-box p-3">
+      <div class="md:w-48 shrink-0">
+        <span class="badge badge-primary badge-outline font-mono max-w-full truncate" title="<%= group_key %>">group: <%= group_key %></span>
+      </div>
+      <div class="flex flex-col gap-1 min-w-0">
+        <% filters.each_with_index do |filter, filter_index| %>
+          <div class="text-sm break-all">
+            <% if filter_index.positive? %>
+              <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mr-1">and</span>
+            <% end %>
+            <span class="font-mono"><%= filter.description %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

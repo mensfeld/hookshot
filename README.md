@@ -121,7 +121,7 @@ Each target has:
 
 ### Filters
 
-Filters allow routing webhooks to specific targets. All filters must match for delivery.
+Filters allow routing webhooks to specific targets. A target without filters receives every webhook.
 
 **Filter Types:**
 - `Header`: Match against request headers
@@ -137,6 +137,31 @@ Filters allow routing webhooks to specific targets. All filters must match for d
 - Field: `$.event`
 - Operator: `Equals`
 - Value: `user.created`
+
+#### Filter Groups
+
+Every filter belongs to a **group** (`default` unless you name one). Groups let a single target express several
+alternative conditions:
+
+- **Within a group**, ALL filters must match (AND).
+- **Across groups**, ANY fully matching group triggers delivery (OR).
+
+Targets whose filters all stay in the `default` group behave as a plain AND of every filter. A group that only
+partially matches never causes delivery on its own.
+
+**Example**: forward only actionable GitHub events to one endpoint:
+
+| Group | Type | Field | Operator | Value |
+|-------|------|-------|----------|-------|
+| `ci-fail` | Header | `X-GitHub-Event` | Equals | `check_suite` |
+| `ci-fail` | Payload | `$.check_suite.conclusion` | Equals | `failure` |
+| `copilot-comment` | Header | `X-GitHub-Event` | Equals | `issue_comment` |
+| `copilot-comment` | Payload | `$.issue.pull_request` | Exists | |
+| `copilot-comment` | Payload | `$.comment.user.login` | Matches | `*copilot*` |
+
+This delivers failed check suites and Copilot comments on pull requests, but not a successful check suite
+(it only partially matches `ci-fail`) nor comments by other users. Group names are case-sensitive and surrounding
+whitespace is stripped.
 
 ## API Endpoints
 

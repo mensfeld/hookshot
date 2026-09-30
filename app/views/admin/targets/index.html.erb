@@ -21,12 +21,19 @@
               <p class="text-xs font-mono text-base-content/60 truncate" title="<%= target.url %>">
                 <%= target.url %>
               </p>
+              <% if target.filters.any? %>
+                <% summary = filter_logic_summary(target) %>
+                <p class="text-xs text-base-content/60 truncate" title="<%= summary %>"><%= summary %></p>
+              <% end %>
             </div>
           </div>
 
           <div class="flex items-center gap-4">
             <div class="flex gap-2">
-              <span class="badge badge-sm badge-ghost"><%= target.filter_count %> filters</span>
+              <span class="badge badge-sm badge-ghost">
+                <% group_count = target.filter_groups.size %>
+                <%= pluralize(target.filters.size, "filter") %><%= " in #{group_count} groups" if group_count > 1 %>
+              </span>
               <span class="badge badge-sm <%= target.success_rate_24h >= 90 ? 'badge-success' : target.success_rate_24h >= 50 ? 'badge-warning' : 'badge-error' %>">
                 <%= target.success_rate_24h %>% (24h)
               </span>

@@ -76,26 +76,43 @@
 
   <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-3">Filters</h3>
-    <p class="text-sm text-base-content/60 mb-3">Only deliver webhooks that match all filters</p>
+    <p class="text-sm text-base-content/60 mb-1">Deliver if ANY group matches. Within a group, ALL filters must match (groups = OR of ANDs).</p>
+    <p class="text-xs text-base-content/50 mb-3">Filters sharing a group name form one condition. Leave the group as <code>default</code> to require all filters to match. No filters delivers every webhook.</p>
+    <datalist id="filter-group-keys">
+      <% (@target.filters.map(&:group_key) | [Filter::DEFAULT_GROUP_KEY]).sort.each do |group_key| %>
+        <option value="<%= group_key %>"></option>
+      <% end %>
+    </datalist>
     <div id="filters" class="space-y-2" data-controller="filters">
-      <%= f.fields_for :filters do |filter_form| %>
-        <div class="grid grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
+      <div class="hidden md:grid grid-cols-12 gap-2 px-3 text-xs uppercase tracking-wide text-base-content/60">
+        <span class="col-span-2">Group</span>
+        <span class="col-span-2">Type</span>
+        <span class="col-span-3">Field</span>
+        <span class="col-span-2">Operator</span>
+        <span class="col-span-2">Value</span>
+      </div>
+      <%= f.fields_for :filters, @target.filters.sort_by.with_index { |filter, index| [filter.group_key.to_s, index] } do |filter_form| %>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
           <%= filter_form.hidden_field :id %>
           <%= filter_form.hidden_field :_destroy, value: false, class: "destroy-field" %>
 
+          <%= filter_form.text_field :group_key, placeholder: "Group", list: "filter-group-keys", autocomplete: "off",
+              maxlength: Filter::GROUP_KEY_MAX_LENGTH, title: "Filters with the same group must all match",
+              class: "input input-bordered input-sm md:col-span-2 font-mono group-field" %>
+
           <%= filter_form.select :filter_type, Filter.filter_types.keys.map { |t| [t.titleize, t] },
-              {}, class: "select select-bordered select-sm col-span-2" %>
+              {}, class: "select select-bordered select-sm md:col-span-2" %>
 
           <%= filter_form.text_field :field, placeholder: "Field (e.g., X-Api-Key or $.event)",
-              class: "input input-bordered input-sm col-span-4 font-mono" %>
+              class: "input input-bordered input-sm md:col-span-3 font-mono" %>
 
           <%= filter_form.select :operator, Filter.operators.keys.map { |o| [o.titleize, o] },
-              {}, class: "select select-bordered select-sm col-span-2" %>
+              {}, class: "select select-bordered select-sm md:col-span-2" %>
 
           <%= filter_form.text_field :value, placeholder: "Value",
-              class: "input input-bordered input-sm col-span-3" %>
+              class: "input input-bordered input-sm md:col-span-2" %>
 
-          <button type="button" class="btn btn-ghost btn-sm btn-square col-span-1" data-action="click->filters#remove">
+          <button type="button" class="btn btn-ghost btn-sm btn-square md:col-span-1" data-action="click->filters#remove">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -104,21 +121,24 @@
       <% end %>
 
       <template data-filters-target="template">
-        <div class="grid grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
-          <select name="target[filters_attributes][NEW_INDEX][filter_type]" class="select select-bordered select-sm col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box" data-filters-target="row">
+          <input type="text" name="target[filters_attributes][NEW_INDEX][group_key]" value="default"
+                 placeholder="Group" list="filter-group-keys" maxlength="100" title="Filters with the same group must all match"
+                 class="input input-bordered input-sm md:col-span-2 font-mono group-field" autocomplete="off">
+          <select name="target[filters_attributes][NEW_INDEX][filter_type]" class="select select-bordered select-sm md:col-span-2">
             <option value="header">Header</option>
             <option value="payload">Payload</option>
           </select>
           <input type="text" name="target[filters_attributes][NEW_INDEX][field]"
-                 placeholder="Field" class="input input-bordered input-sm col-span-4 font-mono" autocomplete="off">
-          <select name="target[filters_attributes][NEW_INDEX][operator]" class="select select-bordered select-sm col-span-2">
+                 placeholder="Field" class="input input-bordered input-sm md:col-span-3 font-mono" autocomplete="off">
+          <select name="target[filters_attributes][NEW_INDEX][operator]" class="select select-bordered select-sm md:col-span-2">
             <option value="exists">Exists</option>
             <option value="equals">Equals</option>
             <option value="matches">Matches</option>
           </select>
           <input type="text" name="target[filters_attributes][NEW_INDEX][value]"
-                 placeholder="Value" class="input input-bordered input-sm col-span-3" autocomplete="off">
-          <button type="button" class="btn btn-ghost btn-sm btn-square col-span-1" data-action="click->filters#remove">
+                 placeholder="Value" class="input input-bordered input-sm md:col-span-2" autocomplete="off">
+          <button type="button" class="btn btn-ghost btn-sm btn-square md:col-span-1" data-action="click->filters#remove">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>

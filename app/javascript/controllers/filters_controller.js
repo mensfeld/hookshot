@@ -1,5 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
+const DEFAULT_GROUP = "default"
+
 export default class extends Controller {
   static targets = ["row", "template"]
   static values = { index: { type: Number, default: 1000 } }
@@ -8,7 +10,13 @@ export default class extends Controller {
     const template = this.templateTarget.innerHTML.replace(/NEW_INDEX/g, this.indexValue)
     const newRow = document.createElement("div")
     newRow.innerHTML = template
-    this.templateTarget.before(newRow.firstElementChild)
+    const row = newRow.firstElementChild
+
+    // Prefill the group with the last used one so adding another filter to the same group is one click
+    const groupField = row.querySelector(".group-field")
+    if (groupField) groupField.value = this.lastGroup()
+
+    this.templateTarget.before(row)
     this.indexValue++
   }
 
@@ -24,5 +32,13 @@ export default class extends Controller {
       // New record - just remove from DOM
       row.remove()
     }
+  }
+
+  lastGroup() {
+    const visibleRows = this.rowTargets.filter((row) => row.style.display !== "none")
+    const lastRow = visibleRows[visibleRows.length - 1]
+    const value = lastRow?.querySelector(".group-field")?.value.trim()
+
+    return value || DEFAULT_GROUP
   }
 }

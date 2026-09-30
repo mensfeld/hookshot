@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_28_101750) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_30_120000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -55,10 +55,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_28_101750) do
     t.datetime "created_at", null: false
     t.string "field", null: false
     t.integer "filter_type", null: false
+    t.string "group_key", default: "default", null: false
     t.integer "operator", null: false
     t.integer "target_id", null: false
     t.datetime "updated_at", null: false
     t.string "value"
+    t.index ["target_id", "group_key"], name: "index_filters_on_target_id_and_group_key"
     t.index ["target_id"], name: "index_filters_on_target_id"
   end
 

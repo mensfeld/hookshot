@@ -7,6 +7,7 @@ FactoryBot.define do
     field { "X-Api-Key" }
     operator { :exists }
     value { nil }
+    group_key { "default" }
 
     trait :header_exists do
       filter_type { :header }
