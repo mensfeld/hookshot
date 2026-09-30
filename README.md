@@ -146,8 +146,9 @@ alternative conditions:
 - **Within a group**, ALL filters must match (AND).
 - **Across groups**, ANY fully matching group triggers delivery (OR).
 
-Targets whose filters all stay in the `default` group behave as a plain AND of every filter. A group that only
-partially matches never causes delivery on its own.
+Targets whose filters all stay in the `default` group behave as a plain AND of every filter. Once more groups exist,
+`default` is just another alternative: there is no condition shared by all groups, so repeat common checks (such as
+a signature header) in every group. A group that only partially matches never causes delivery on its own.
 
 **Example**: forward only actionable GitHub events to one endpoint:
 

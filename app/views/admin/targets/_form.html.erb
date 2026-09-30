@@ -77,7 +77,7 @@
   <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-3">Filters</h3>
     <p class="text-sm text-base-content/60 mb-1">Deliver if ANY group matches. Within a group, ALL filters must match (groups = OR of ANDs).</p>
-    <p class="text-xs text-base-content/50 mb-3">Filters sharing a group name form one condition. Leave the group as <code>default</code> to require all filters to match. No filters delivers every webhook.</p>
+    <p class="text-xs text-base-content/50 mb-3">Filters sharing a group name form one condition. Keep every filter in one group (e.g. <code>default</code>) to require all of them to match. With several groups, <code>default</code> is just another alternative, so repeat shared conditions in each group. No filters delivers every webhook.</p>
     <datalist id="filter-group-keys">
       <% (@target.filters.map(&:group_key) | [Filter::DEFAULT_GROUP_KEY]).sort.each do |group_key| %>
         <option value="<%= group_key %>"></option>

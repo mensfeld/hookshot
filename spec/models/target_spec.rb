@@ -113,6 +113,22 @@ RSpec.describe Target do
       expect(target.filters.count).to eq(0)
     end
 
+    it "rejects new rows whose field and value contain only whitespace" do
+      target.update!(filters_attributes: [ { group_key: "a", filter_type: "header", operator: "equals", field: " ", value: "  " } ])
+
+      expect(target.filters.count).to eq(0)
+    end
+
+    it "keeps a new row with a value but no field so validation reports it" do
+      result = target.update(
+        filters_attributes: [ { group_key: "default", filter_type: "header", operator: "equals", field: "", value: "prod" } ]
+      )
+
+      expect(result).to be false
+      expect(target.errors.full_messages).to include("Filters field can't be blank")
+      expect(Filter.where(target: target).count).to eq(0)
+    end
+
     it "does not silently ignore an existing filter whose field was blanked" do
       filter = create(:filter, target: target)
 

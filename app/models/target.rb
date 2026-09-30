@@ -12,11 +12,12 @@ class Target < ApplicationRecord
 
   scope :active, -> { where(active: true) }
 
-  # A new filter row is dropped when it carries no field. We cannot rely on +:all_blank+ because +group_key+ is always
-  # submitted with a value. Existing filters are never rejected, so blanking the field of a saved filter surfaces a
-  # validation error instead of silently keeping the old value.
+  # A new filter row is dropped when the user typed nothing into it (no field and no value). We cannot rely on
+  # +:all_blank+ because +group_key+, +filter_type+ and +operator+ always arrive with values from the form. A partially
+  # filled row (e.g. a value without a field) is kept so validation reports it instead of silently discarding it.
+  # Existing filters are never rejected, so blanking the field of a saved filter also surfaces a validation error.
   accepts_nested_attributes_for :filters, allow_destroy: true,
-    reject_if: ->(attrs) { attrs["id"].blank? && attrs["field"].blank? }
+    reject_if: ->(attrs) { attrs["id"].blank? && attrs["field"].blank? && attrs["value"].blank? }
 
   # Calculates the success rate for deliveries in the last 24 hours.
   # @return [Float] percentage of successful deliveries (0-100)

@@ -255,6 +255,22 @@ RSpec.describe FilterEvaluator do
         end
       end
 
+      context "with a default group alongside named groups" do
+        let(:webhook) { github_webhook("check_suite", { check_suite: { conclusion: "failure" } }) }
+
+        before { add_filter("default", :header, "X-Hub-Signature-256", :exists) }
+
+        it "treats default as another alternative rather than a condition shared by all groups" do
+          expect(evaluator.passes?).to be true
+        end
+
+        it "passes on the default group alone when no named group matches" do
+          webhook.update!(headers: { "HTTP_X_GITHUB_EVENT" => "push", "HTTP_X_HUB_SIGNATURE_256" => "sha256=abc" })
+
+          expect(evaluator.passes?).to be true
+        end
+      end
+
       context "with group keys that differ only by surrounding whitespace" do
         let(:webhook) { github_webhook("check_suite", { check_suite: { conclusion: "success" } }) }
 

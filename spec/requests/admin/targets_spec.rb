@@ -158,6 +158,19 @@ RSpec.describe "Admin Targets" do
         expect(Target.last.filters).to be_empty
       end
 
+      it "does not create the target when a row has a value but no field" do
+        params = grouped_params.deep_dup
+        params[:target][:filters_attributes] = {
+          "0" => { group_key: "default", filter_type: "header", field: "", operator: "equals", value: "prod" }
+        }
+
+        expect {
+          post "/admin/targets", params: params, headers: auth_headers
+        }.not_to change(Target, :count)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("Filters field can&#39;t be blank")
+      end
+
       it "renders errors for an incomplete filter row" do
         params = grouped_params.deep_dup
         params[:target][:filters_attributes] = {
@@ -243,6 +256,7 @@ RSpec.describe "Admin Targets" do
       expect(response.body).to include('value="ci-fail"')
       expect(response.body).to include('name="target[filters_attributes][NEW_INDEX][group_key]"')
       expect(response.body).to include("Deliver if ANY group matches")
+      expect(response.body).to include("<code>default</code> is just another alternative")
     end
   end
 
