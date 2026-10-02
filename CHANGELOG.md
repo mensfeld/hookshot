@@ -1,6 +1,6 @@
 # Hookshot changelog
 
-## 1.3.0 (Unreleased)
+## 1.3.0 (2026-10-02)
 - [Feature] Add a "Matches regex" filter operator that takes a Ruby regular expression. Matches are unanchored (use `\A`/`\z`), case-sensitive unless prefixed with `(?i)`, and never match missing fields.
 - [Enhancement] Invalid regular expressions are rejected when saving a target, with the parser's reason shown in the form.
 - [Enhancement] Regex matching is limited to 100ms per filter; a timed-out match counts as no match and is logged.
