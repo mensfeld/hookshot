@@ -171,6 +171,33 @@ RSpec.describe "Admin Targets" do
         expect(response.body).to include("Filters field can&#39;t be blank")
       end
 
+      it "creates a filter with the regex operator" do
+        params = grouped_params.deep_dup
+        params[:target][:filters_attributes] = {
+          "0" => { group_key: "bots", filter_type: "payload", field: "$.sender.login", operator: "regex", value: '\A\w+\[bot\]\z' }
+        }
+
+        post "/admin/targets", params: params, headers: auth_headers
+
+        expect(response).to redirect_to(admin_targets_path)
+        expect(Target.last.filters.sole).to have_attributes(operator: "regex", value: '\A\w+\[bot\]\z')
+      end
+
+      it "rejects an invalid regular expression and keeps the form input" do
+        params = grouped_params.deep_dup
+        params[:target][:filters_attributes] = {
+          "0" => { group_key: "bots", filter_type: "payload", field: "$.sender.login", operator: "regex", value: "(unclosed" }
+        }
+
+        expect {
+          post "/admin/targets", params: params, headers: auth_headers
+        }.not_to change(Target, :count)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("Filters value is not a valid regular expression")
+        expect(response.body).to include('value="(unclosed"')
+        expect(Nokogiri::HTML(response.body).at_css("select[name$='[operator]'] option[selected]")["value"]).to eq("regex")
+      end
+
       it "renders errors for an incomplete filter row" do
         params = grouped_params.deep_dup
         params[:target][:filters_attributes] = {

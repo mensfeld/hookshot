@@ -31,10 +31,14 @@ beforeEach(() => {
   localStorage.clear()
 })
 
+// Option labels as rendered by Filter.operator_options / filter_types titleized
+const LABELS = { header: "Header", payload: "Payload", exists: "Exists", equals: "Equals",
+  matches: "Matches (wildcard)", regex: "Matches regex" }
+
 // Markup helpers --------------------------------------------------------------------------------------------------
 
 function row({ index, id = null, group = "default", type = "header", field = "", operator = "exists", value = "" }) {
-  const option = (current, name) => `<option value="${name}" ${current === name ? "selected" : ""}>${name[0].toUpperCase()}${name.slice(1)}</option>`
+  const option = (current, name) => `<option value="${name}" ${current === name ? "selected" : ""}>${LABELS[name]}</option>`
   const name = (attr) => `target[filters_attributes][${index}][${attr}]`
 
   return `
@@ -45,7 +49,7 @@ function row({ index, id = null, group = "default", type = "header", field = "",
       <input type="hidden" name="${name("group_key")}" value="${group}" class="group-field">
       <select name="${name("filter_type")}">${option(type, "header")}${option(type, "payload")}</select>
       <input type="text" name="${name("field")}" value="${field}">
-      <select name="${name("operator")}">${["exists", "equals", "matches"].map((o) => option(operator, o)).join("")}</select>
+      <select name="${name("operator")}">${["exists", "equals", "matches", "regex"].map((o) => option(operator, o)).join("")}</select>
       <input type="text" name="${name("value")}" value="${value}">
       <button type="button" data-action="click->filters#removeFilter">x</button>
     </div>`
@@ -311,6 +315,20 @@ test("the summary omits the value for exists filters, marks a missing field and 
     "1 filter: Header ? equals x",
     "No filters - this group is ignored"
   ])
+})
+
+test("the summary names wildcard and regex operators by their labels", async () => {
+  await mount([
+    group("bots", [
+      row({ index: 0, id: 1, group: "bots", field: "X-GitHub-Event", operator: "matches", value: "pull_request*" }),
+      row({ index: 1, id: 2, group: "bots", type: "payload", field: "$.sender.login", operator: "regex", value: "\\A\\w+\\[bot\\]\\z" })
+    ])
+  ])
+
+  await click(document.getElementById("collapse-all"))
+
+  assert.equal(cardNamed("bots").querySelector("[data-group-summary]").textContent,
+    "2 filters: Header X-GitHub-Event matches (wildcard) pull_request* AND Payload $.sender.login matches regex \\A\\w+\\[bot\\]\\z")
 })
 
 test("clicking the summary expands the group again", async () => {

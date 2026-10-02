@@ -160,6 +160,123 @@ RSpec.describe FilterEvaluator do
       end
     end
 
+    context "with regex operator" do
+      let(:evaluator) { described_class.new(webhook, target) }
+      let(:webhook) do
+        create(:webhook,
+          headers: { "HTTP_X_GITHUB_EVENT" => "pull_request_review_comment" },
+          payload: { comment: { user: { login: "Copilot", id: 42 } }, labels: [ "bug" ], draft: false }.to_json)
+      end
+
+      def regex_filter(filter_type, field, pattern)
+        create(:filter, target: target, filter_type: filter_type, field: field, operator: :regex, value: pattern)
+      end
+
+      it "matches a header value" do
+        regex_filter(:header, "X-GitHub-Event", '\Apull_request(_review)?(_comment)?\z')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches a payload value" do
+        regex_filter(:payload, "$.comment.user.login", '\A(mensfeld|Copilot)\z')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches anywhere in the value unless anchored" do
+        regex_filter(:header, "X-GitHub-Event", 'review')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "fails when an anchored pattern only matches part of the value" do
+        regex_filter(:header, "X-GitHub-Event", '\Areview\z')
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "is case-sensitive by default" do
+        regex_filter(:payload, "$.comment.user.login", 'copilot')
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "supports inline flags for case-insensitive matching" do
+        regex_filter(:payload, "$.comment.user.login", '(?i)copilot')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches non-string payload values by their string form" do
+        regex_filter(:payload, "$.comment.user.id", '\A\d+\z')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches false booleans by their string form" do
+        regex_filter(:payload, "$.draft", '\Afalse\z')
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "never matches a missing payload field, even with a pattern accepting empty strings" do
+        regex_filter(:payload, "$.comment.user.type", '.*')
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "never matches a missing header, even with a negative lookahead" do
+        regex_filter(:header, "X-Missing", '\A(?!bot)')
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "fails when the payload is not JSON" do
+        webhook.update!(payload: "not json")
+        regex_filter(:payload, "$.comment.user.login", '.')
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "fails gracefully when a stored pattern is invalid" do
+        regex_filter(:header, "X-GitHub-Event", 'valid').update_column(:value, "invalid[")
+
+        expect(evaluator.passes?).to be false
+      end
+
+      it "fails and logs a warning when matching times out" do
+        filter = regex_filter(:header, "X-GitHub-Event", 'review')
+        regex = instance_double(Regexp)
+        allow(regex).to receive(:match?).and_raise(Regexp::TimeoutError)
+        allow_any_instance_of(Filter).to receive(:compiled_regex).and_return(regex)
+        allow(Rails.logger).to receive(:warn)
+
+        expect(evaluator.passes?).to be false
+        expect(Rails.logger).to have_received(:warn).with(/Regex filter #{filter.id} timed out on webhook #{webhook.id}/)
+      end
+
+      it "stops a catastrophic backtracking pattern at the timeout" do
+        webhook.update!(headers: { "HTTP_X_SLOW" => "#{'a' * 50_000}!" })
+        regex_filter(:header, "X-Slow", '\A(a|a?)+\z')
+
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        expect(evaluator.passes?).to be false
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 2
+      end
+
+      it "combines with other filters in a group" do
+        create(:filter, target: target, group_key: "copilot", filter_type: :header, field: "X-GitHub-Event",
+          operator: :equals, value: "issue_comment")
+        create(:filter, target: target, group_key: "copilot", filter_type: :payload, field: "$.comment.user.login",
+          operator: :regex, value: "(?i)copilot")
+
+        expect(evaluator.passes?).to be false
+        webhook.update!(headers: { "HTTP_X_GITHUB_EVENT" => "issue_comment" })
+        expect(described_class.new(webhook, target).passes?).to be true
+      end
+    end
+
     context "with invalid regex pattern" do
       let(:webhook) { create(:webhook, headers: { "HTTP_X_API_KEY" => "value" }) }
       let(:filter) { create(:filter, :header_matches, target: target, field: "X-Api-Key", value: "valid") }

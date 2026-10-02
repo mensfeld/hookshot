@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Evaluates filter rules against a webhook to determine if it passes.
-# Supports header and payload filters with exists, equals, and matches operators.
+# Supports header and payload filters with exists, equals, matches (wildcard) and regex operators.
 #
 # Filters are evaluated as an OR of ANDs: the webhook passes when at least one filter group has all of its filters
 # match. A target whose filters all share one group therefore behaves as a plain AND of those filters.
@@ -77,6 +77,7 @@ class FilterEvaluator
     when "exists" then value.present?
     when "equals" then value.to_s == filter.value
     when "matches" then match_pattern?(value.to_s, filter.value)
+    when "regex" then match_regex?(filter, value)
     else false
     end
   end
@@ -91,6 +92,22 @@ class FilterEvaluator
     # Convert glob-style wildcards to regex
     regex = Regexp.new("\\A#{Regexp.escape(pattern).gsub('\*', '.*')}\\z", Regexp::IGNORECASE)
     value.match?(regex)
+  rescue RegexpError
+    false
+  end
+
+  # Checks if a value matches the filter's regular expression. The match is unanchored and a missing value never
+  # matches, so patterns that accept empty strings or use negative lookaheads cannot match absent fields.
+  # @param filter [Filter] the regex filter
+  # @param value [Object, nil] the value to check
+  # @return [Boolean] true if the value matches the regular expression
+  def match_regex?(filter, value)
+    return false if value.nil?
+
+    filter.compiled_regex.match?(value.to_s)
+  rescue Regexp::TimeoutError
+    Rails.logger.warn("[FilterEvaluator] Regex filter #{filter.id} timed out on webhook #{@webhook.id}")
+    false
   rescue RegexpError
     false
   end
