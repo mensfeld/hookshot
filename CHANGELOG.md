@@ -1,6 +1,6 @@
 # Hookshot changelog
 
-## 1.2.1 (Unreleased)
+## 1.2.1 (2026-10-02)
 - [Enhancement] Target form edits filters as group cards: each group has its own card with a name field, AND markers between its filters and an OR divider between groups, plus per-group "Add filter" and "Remove group" actions and an "Add group" button.
 - [Enhancement] Filter groups can be collapsed to a one-line summary, individually or with "Collapse all" / "Expand all". Collapsed groups are remembered per target in the browser (localStorage).
 - [Enhancement] Warn when two groups in the editor share a name (they are merged on save) and flag groups with no filters.
