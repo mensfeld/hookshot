@@ -1,0 +1,57 @@
+<%# A filter group card: every filter inside must match (AND); groups are OR-ed with each other. The name input has
+    no form name on purpose - it only drives the hidden group_key field of each row in the card. %>
+<% removed = filters.any? && filters.all?(&:marked_for_destruction?) %>
+<div data-filters-target="group" <% if removed %>hidden<% end %>>
+  <div class="flex items-center gap-3 py-2" data-or-divider <% if first %>hidden<% end %>>
+    <span class="flex-1 border-t border-dashed border-base-300"></span>
+    <span class="badge badge-sm badge-primary uppercase tracking-wide">or</span>
+    <span class="flex-1 border-t border-dashed border-base-300"></span>
+  </div>
+
+  <section class="rounded-box border border-base-300 border-l-4 border-l-primary bg-base-100 p-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" class="btn btn-ghost btn-xs btn-square" title="Collapse group" aria-label="Collapse group"
+              aria-expanded="true" data-collapse-toggle data-action="click->filters#toggleGroup">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" data-collapse-icon>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <span class="text-xs uppercase tracking-wide text-base-content/60">Group</span>
+      <input type="text" value="<%= group_key %>" placeholder="<%= Filter::DEFAULT_GROUP_KEY %>"
+             maxlength="<%= Filter::GROUP_KEY_MAX_LENGTH %>" aria-label="Group name" autocomplete="off"
+             class="input input-bordered input-sm font-mono w-full sm:w-56"
+             data-group-name data-action="input->filters#renameGroup">
+      <span class="text-xs text-base-content/60" data-group-hint>All filters in this group must match</span>
+      <button type="button" class="btn btn-ghost btn-xs text-error sm:ml-auto" data-action="click->filters#removeGroup">
+        Remove group
+      </button>
+      <p class="w-full text-xs text-warning" data-duplicate-warning hidden>
+        Another group has the same name. They will be merged into one group on save.
+      </p>
+    </div>
+
+    <button type="button" class="block w-full text-left text-xs font-mono text-base-content/60 truncate mt-2 pl-9 hover:text-base-content"
+            title="Expand group" data-group-summary data-action="click->filters#toggleGroup" hidden></button>
+
+    <div class="mt-4" data-group-body>
+      <div class="space-y-4" data-rows>
+        <% filters.each_with_index do |filter, index| %>
+          <%# fields_for writes the auto-assigned child_index into its options hash, so build a fresh one per row %>
+          <%= f.fields_for :filters, filter, (child_index ? { child_index: child_index } : {}) do |filter_form| %>
+            <%= render "filter_row", filter_form: filter_form, first: index.zero? %>
+          <% end %>
+        <% end %>
+      </div>
+
+      <p class="text-xs text-base-content/60" data-empty-hint hidden>This group has no filters and is ignored.</p>
+
+      <button type="button" class="btn btn-ghost btn-sm mt-2" data-action="click->filters#addFilter">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add filter (AND)
+      </button>
+    </div>
+  </section>
+</div>

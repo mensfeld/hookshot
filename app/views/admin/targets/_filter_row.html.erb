@@ -1,0 +1,29 @@
+<%# One filter (AND-ed with the other filters in its group). The group key is a hidden field kept in sync with the
+    group card's name by the filters Stimulus controller. %>
+<% removed = filter_form.object.marked_for_destruction? %>
+<div class="relative grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box"
+     data-filters-target="row" <% if removed %>hidden<% end %>>
+  <span class="badge badge-xs badge-neutral absolute -top-2.5 left-4 uppercase tracking-wide" data-and-label <% if first %>hidden<% end %>>and</span>
+  <%= filter_form.hidden_field :id if filter_form.object.persisted? %>
+  <%= filter_form.hidden_field :_destroy, value: removed, class: "destroy-field" %>
+  <%= filter_form.hidden_field :group_key, class: "group-field" %>
+
+  <%= filter_form.select :filter_type, Filter.filter_types.keys.map { |t| [t.titleize, t] },
+      {}, class: "select select-bordered select-sm w-full md:col-span-2", aria: { label: "Type" } %>
+
+  <%= filter_form.text_field :field, placeholder: "Field (e.g., X-Api-Key or $.event)", autocomplete: "off",
+      class: "input input-bordered input-sm w-full md:col-span-4 font-mono", aria: { label: "Field" } %>
+
+  <%= filter_form.select :operator, Filter.operators.keys.map { |o| [o.titleize, o] },
+      {}, class: "select select-bordered select-sm w-full md:col-span-2", aria: { label: "Operator" } %>
+
+  <%= filter_form.text_field :value, placeholder: "Value", autocomplete: "off",
+      class: "input input-bordered input-sm w-full md:col-span-3", aria: { label: "Value" } %>
+
+  <button type="button" class="btn btn-ghost btn-sm btn-square md:col-span-1" title="Remove filter"
+          aria-label="Remove filter" data-action="click->filters#removeFilter">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+</div>

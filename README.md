@@ -146,6 +146,9 @@ alternative conditions:
 - **Within a group**, ALL filters must match (AND).
 - **Across groups**, ANY fully matching group triggers delivery (OR).
 
+In the target form each group is a card: rename it, add filters to it, or remove it as a whole. Groups can be
+collapsed to a one-line summary, and the collapsed state is remembered per target in your browser.
+
 Targets whose filters all stay in the `default` group behave as a plain AND of every filter. Once more groups exist,
 `default` is just another alternative: there is no condition shared by all groups, so repeat common checks (such as
 a signature header) in every group. A group that only partially matches never causes delivery on its own.

@@ -102,6 +102,16 @@ RSpec.describe Target do
 
       expect(target.filter_groups).to eq("a" => [ kept ])
     end
+
+    it "keeps filters marked for destruction when asked to (for re-rendering a form)" do
+      kept = create(:filter, target: target, group_key: "a")
+      removed = create(:filter, target: target, group_key: "b")
+      target.reload
+      target.filters.find { |filter| filter.id == removed.id }.mark_for_destruction
+
+      expect(target.filter_groups(include_removed: true).transform_values { |filters| filters.map(&:id) })
+        .to eq("a" => [ kept.id ], "b" => [ removed.id ])
+    end
   end
 
   describe "nested filter attributes" do
