@@ -8,7 +8,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test 'spec/javascript/**/*.test.mjs'"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +18,8 @@
   },
   "devDependencies": {
     "@herb-tools/linter": "^0.11.0",
+    "@hotwired/stimulus": "3.2.2",
+    "jsdom": "30.1.1",
     "lostconf": "0.4.0"
   }
 }

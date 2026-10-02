@@ -31,10 +31,11 @@ class Target < ApplicationRecord
 
   # Groups filters by their group key. Within a group all filters must match; across groups any group may match.
   # Groups are ordered by key and filters keep their original order within a group.
+  # @param include_removed [Boolean] whether to keep filters marked for destruction (used to re-render a form)
   # @return [Hash{String => Array<Filter>}] filters keyed by group key
-  def filter_groups
+  def filter_groups(include_removed: false)
     filters
-      .reject(&:marked_for_destruction?)
+      .reject { |filter| !include_removed && filter.marked_for_destruction? }
       .group_by(&:group_key)
       .sort_by { |key, _| key }
       .to_h

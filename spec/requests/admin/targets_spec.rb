@@ -256,7 +256,7 @@ RSpec.describe "Admin Targets" do
       expect(response.body).to include('value="ci-fail"')
       expect(response.body).to include('name="target[filters_attributes][NEW_INDEX][group_key]"')
       expect(response.body).to include("Deliver if ANY group matches")
-      expect(response.body).to include("<code>default</code> is just another alternative")
+      expect(response.body).to include("Groups do not share conditions")
     end
   end
 

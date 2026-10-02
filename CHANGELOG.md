@@ -1,5 +1,13 @@
 # Hookshot changelog
 
+## 1.2.1 (Unreleased)
+- [Enhancement] Target form edits filters as group cards: each group has its own card with a name field, AND markers between its filters and an OR divider between groups, plus per-group "Add filter" and "Remove group" actions and an "Add group" button.
+- [Enhancement] Filter groups can be collapsed to a one-line summary, individually or with "Collapse all" / "Expand all". Collapsed groups are remembered per target in the browser (localStorage).
+- [Enhancement] Warn when two groups in the editor share a name (they are merged on save) and flag groups with no filters.
+- [Fix] Filters removed in the form stay removed when the form is re-rendered after a validation error instead of reappearing as kept.
+- [Fix] Filter inputs on the target form stretch to their full column width.
+- [Maintenance] Add JavaScript tests for the filter editor (`npm test`, Node test runner with jsdom) and run them in CI.
+
 ## 1.2.0 (2026-09-30)
 - [Feature] Add filter groups to targets: filters within a group must all match (AND) and a webhook is delivered when any group fully matches (OR). This lets one target express several alternative conditions instead of maintaining one target per condition.
 - [Feature] Admin target form gets a per-filter Group input with suggestions of existing groups; newly added rows default to the last used group.
