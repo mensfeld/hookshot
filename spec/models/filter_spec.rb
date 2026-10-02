@@ -35,6 +35,30 @@ RSpec.describe Filter do
           expect(filter.errors[:value]).to be_present
         end
       end
+
+      context "with regex operator" do
+        it "requires value" do
+          filter = build(:filter, operator: :regex, value: nil)
+
+          expect(filter).not_to be_valid
+          expect(filter.errors[:value]).to eq([ "can't be blank" ])
+        end
+
+        it "accepts a valid regular expression" do
+          expect(build(:filter, operator: :regex, value: '\A(?i)copilot(\[bot\])?\z')).to be_valid
+        end
+
+        it "rejects an invalid regular expression with the reason" do
+          filter = build(:filter, operator: :regex, value: "copilot[")
+
+          expect(filter).not_to be_valid
+          expect(filter.errors[:value].first).to start_with("is not a valid regular expression (")
+        end
+      end
+
+      it "does not validate other operators' values as regular expressions" do
+        expect(build(:filter, operator: :matches, value: "copilot[")).to be_valid
+      end
     end
   end
 
@@ -44,7 +68,27 @@ RSpec.describe Filter do
 
   describe "enums" do
     it { is_expected.to define_enum_for(:filter_type).with_values(header: 0, payload: 1) }
-    it { is_expected.to define_enum_for(:operator).with_values(exists: 0, equals: 1, matches: 2) }
+    it { is_expected.to define_enum_for(:operator).with_values(exists: 0, equals: 1, matches: 2, regex: 3) }
+  end
+
+  describe ".operator_options" do
+    it "labels every operator for select inputs" do
+      expect(described_class.operator_options).to eq([
+        [ "Exists", "exists" ],
+        [ "Equals", "equals" ],
+        [ "Matches (wildcard)", "matches" ],
+        [ "Matches regex", "regex" ]
+      ])
+    end
+  end
+
+  describe "#compiled_regex" do
+    it "compiles the value with a match timeout" do
+      regex = build(:filter, operator: :regex, value: "ci-.+").compiled_regex
+
+      expect(regex.source).to eq("ci-.+")
+      expect(regex.timeout).to eq(Filter::REGEX_TIMEOUT)
+    end
   end
 
   describe "#description" do
@@ -69,6 +113,14 @@ RSpec.describe Filter do
 
       it "returns a readable description" do
         expect(filter.description).to eq("Payload '$.email' matches '*@example.com'")
+      end
+    end
+
+    context "with regex operator" do
+      let(:filter) { build(:filter, filter_type: :payload, field: "$.comment.user.login", operator: :regex, value: "(?i)copilot") }
+
+      it "returns a readable description" do
+        expect(filter.description).to eq("Payload '$.comment.user.login' matches regex /(?i)copilot/")
       end
     end
   end

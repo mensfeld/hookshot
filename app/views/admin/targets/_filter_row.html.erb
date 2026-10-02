@@ -14,7 +14,7 @@
   <%= filter_form.text_field :field, placeholder: "Field (e.g., X-Api-Key or $.event)", autocomplete: "off",
       class: "input input-bordered input-sm w-full md:col-span-4 font-mono", aria: { label: "Field" } %>
 
-  <%= filter_form.select :operator, Filter.operators.keys.map { |o| [o.titleize, o] },
+  <%= filter_form.select :operator, Filter.operator_options,
       {}, class: "select select-bordered select-sm w-full md:col-span-2", aria: { label: "Operator" } %>
 
   <%= filter_form.text_field :value, placeholder: "Value", autocomplete: "off",

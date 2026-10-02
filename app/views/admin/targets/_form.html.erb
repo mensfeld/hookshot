@@ -77,7 +77,12 @@
   <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-1">Filters</h3>
     <p class="text-sm text-base-content/60 mb-1">Deliver if ANY group matches. Within a group, ALL filters must match.</p>
-    <p class="text-xs text-base-content/50 mb-4">Groups do not share conditions, so repeat common checks in each group. A target without filters receives every webhook.</p>
+    <p class="text-xs text-base-content/50 mb-1">Groups do not share conditions, so repeat common checks in each group. A target without filters receives every webhook.</p>
+    <p class="text-xs text-base-content/50 mb-4">
+      <strong>Matches (wildcard)</strong> compares the whole value with <code>*</code> wildcards, ignoring case.
+      <strong>Matches regex</strong> takes a Ruby regular expression that may match anywhere in the value: case-sensitive
+      unless prefixed with <code>(?i)</code>, anchor with <code>\A</code> and <code>\z</code>. Missing fields never match.
+    </p>
 
     <div id="filters" data-controller="filters"
          data-filters-storage-key-value="<%= "hookshot:target:#{@target.id}:collapsed-filter-groups" if @target.persisted? %>">

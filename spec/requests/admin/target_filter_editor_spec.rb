@@ -47,6 +47,17 @@ RSpec.describe "Admin target filter editor" do
 
     before { get "/admin/targets/#{target.id}/edit", headers: auth_headers }
 
+    it "offers every operator, including regex, with readable labels" do
+      options = cards.first.css("select[name$='[operator]'] option").map { |option| [ option.text, option["value"] ] }
+
+      expect(options).to eq(Filter.operator_options)
+      expect(options).to include([ "Matches regex", "regex" ])
+    end
+
+    it "explains the wildcard and regex operators" do
+      expect(response.body).to include("<strong>Matches regex</strong> takes a Ruby regular expression")
+    end
+
     it "renders one card per group, ordered by group name" do
       expect(cards.map { |card| card.at_css("[data-group-name]")["value"] }).to eq(%w[approved ci-fail])
     end

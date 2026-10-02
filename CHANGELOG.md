@@ -1,5 +1,11 @@
 # Hookshot changelog
 
+## 1.3.0 (Unreleased)
+- [Feature] Add a "Matches regex" filter operator that takes a Ruby regular expression. Matches are unanchored (use `\A`/`\z`), case-sensitive unless prefixed with `(?i)`, and never match missing fields.
+- [Enhancement] Invalid regular expressions are rejected when saving a target, with the parser's reason shown in the form.
+- [Enhancement] Regex matching is limited to 100ms per filter; a timed-out match counts as no match and is logged.
+- [Enhancement] The existing `Matches` operator is labeled "Matches (wildcard)" to tell it apart, and the form explains both operators.
+
 ## 1.2.1 (2026-10-02)
 - [Enhancement] Target form edits filters as group cards: each group has its own card with a name field, AND markers between its filters and an OR divider between groups, plus per-group "Add filter" and "Remove group" actions and an "Add group" button.
 - [Enhancement] Filter groups can be collapsed to a one-line summary, individually or with "Collapse all" / "Expand all". Collapsed groups are remembered per target in the browser (localStorage).

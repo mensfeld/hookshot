@@ -130,7 +130,20 @@ Filters allow routing webhooks to specific targets. A target without filters rec
 **Operators:**
 - `Exists`: Field is present
 - `Equals`: Field equals exact value
-- `Matches`: Field matches pattern (supports `*` wildcard)
+- `Matches (wildcard)`: Whole field matches a pattern with `*` wildcards, ignoring case
+- `Matches regex`: Field matches a Ruby regular expression
+
+**Regex details:** the pattern may match anywhere in the value, so anchor it with `\A` and `\z` to match the whole
+value. Matching is case-sensitive unless the pattern starts with `(?i)`. A missing field never matches (not even
+`.*` or a negative lookahead), and non-string payload values are matched by their string form (`42`, `false`).
+Invalid patterns are rejected when saving, and each match is limited to 100ms so a pathological pattern cannot stall
+incoming webhooks.
+
+**Example**: deliver comments from Renovate or Dependabot regardless of case:
+- Type: `Payload`
+- Field: `$.sender.login`
+- Operator: `Matches regex`
+- Value: `(?i)\A(renovate|dependabot)\[bot\]\z`
 
 **Example**: Only deliver webhooks where `$.event` equals `user.created`:
 - Type: `Payload`

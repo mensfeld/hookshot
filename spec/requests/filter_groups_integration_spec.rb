@@ -28,6 +28,8 @@ RSpec.describe "Filter groups end-to-end" do
       [ "copilot-comment", "header", "X-GitHub-Event", "equals", "issue_comment" ],
       [ "copilot-comment", "payload", "$.issue.pull_request", "exists", "" ],
       [ "copilot-comment", "payload", "$.comment.user.login", "matches", "*copilot*" ],
+      [ "bot-review", "header", "X-GitHub-Event", "regex", '\Apull_request_review(_comment)?\z' ],
+      [ "bot-review", "payload", "$.sender.login", "regex", '(?i)\A(renovate|dependabot)\[bot\]\z' ],
       [ "pr-closed", "header", "X-GitHub-Event", "equals", "pull_request" ],
       [ "pr-closed", "payload", "$.action", "equals", "closed" ]
     ]
@@ -58,10 +60,10 @@ RSpec.describe "Filter groups end-to-end" do
     Delivery.find_by!(webhook: Webhook.last, target: target)
   end
 
-  it "stores all six groups from the admin form" do
+  it "stores all seven groups from the admin form" do
     expect(target.filters.count).to eq(filter_rows.size)
     expect(target.filter_groups.keys).to contain_exactly(
-      "approved", "changes-requested", "ci-fail", "copilot-comment", "owner-comment", "pr-closed"
+      "approved", "bot-review", "changes-requested", "ci-fail", "copilot-comment", "owner-comment", "pr-closed"
     )
   end
 
@@ -84,6 +86,12 @@ RSpec.describe "Filter groups end-to-end" do
     ],
     "a closed PR" => [
       "pull_request", { action: "closed", pull_request: { merged: true } }
+    ],
+    "a review comment from Renovate (regex group)" => [
+      "pull_request_review_comment", { action: "created", sender: { login: "renovate[bot]" } }
+    ],
+    "a review from Dependabot in any case (regex group)" => [
+      "pull_request_review", { action: "submitted", review: { state: "commented" }, sender: { login: "Dependabot[bot]" } }
     ]
   }.each do |description, (event, payload)|
     it "delivers #{description}" do
@@ -109,6 +117,15 @@ RSpec.describe "Filter groups end-to-end" do
     ],
     "a push" => [
       "push", { ref: "refs/heads/master" }
+    ],
+    "a review comment from a look-alike account (anchored regex)" => [
+      "pull_request_review_comment", { action: "created", sender: { login: "renovate[bot]-fan" } }
+    ],
+    "a bot comment on another event (regex header mismatch)" => [
+      "pull_request_review_thread", { action: "resolved", sender: { login: "renovate[bot]" } }
+    ],
+    "a review comment without a sender" => [
+      "pull_request_review_comment", { action: "created" }
     ],
     "a closed action on a non-PR event (header mismatch)" => [
       "issues", { action: "closed" }
