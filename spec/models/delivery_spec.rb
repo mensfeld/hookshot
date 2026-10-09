@@ -92,6 +92,59 @@ RSpec.describe Delivery do
     end
   end
 
+  describe ".retryable" do
+    it "returns failed deliveries that have attempts left" do
+      retryable = create(:delivery, :retryable)
+      create(:delivery, status: :failed, attempts: Delivery::MAX_TOTAL_ATTEMPTS)
+      create(:delivery, :success)
+      create(:delivery, :filtered)
+      create(:delivery, status: :pending)
+
+      expect(described_class.retryable).to contain_exactly(retryable)
+    end
+  end
+
+  describe "#retry!" do
+    include ActiveJob::TestHelper
+
+    it "marks a retryable delivery pending and queues a dispatch" do
+      delivery = create(:delivery, :retryable)
+
+      expect { expect(delivery.retry!).to be true }.to have_enqueued_job(DispatchJob).with(delivery.id)
+      expect(delivery).to be_pending
+      expect(delivery).not_to be_changed
+      expect(delivery.reload).to be_pending
+    end
+
+    it "keeps the attempt count (the dispatch job increments it)" do
+      delivery = create(:delivery, :retryable, attempts: 3)
+
+      delivery.retry!
+
+      expect(delivery.reload.attempts).to eq(3)
+    end
+
+    it "refuses deliveries that are not retryable" do
+      exhausted = create(:delivery, status: :failed, attempts: Delivery::MAX_TOTAL_ATTEMPTS)
+      succeeded = create(:delivery, :success)
+
+      expect { [ exhausted, succeeded ].each { |delivery| expect(delivery.retry!).to be false } }
+        .not_to have_enqueued_job(DispatchJob)
+      expect(exhausted.reload).to be_failed
+    end
+
+    it "queues a delivery only once when retried concurrently from stale copies" do
+      delivery = create(:delivery, :retryable)
+      first_copy = described_class.find(delivery.id)
+      second_copy = described_class.find(delivery.id)
+
+      expect {
+        expect(first_copy.retry!).to be true
+        expect(second_copy.retry!).to be false
+      }.to have_enqueued_job(DispatchJob).exactly(:once)
+    end
+  end
+
   describe "#retryable?" do
     context "when failed with fewer than 10 attempts" do
       let(:delivery) { build(:delivery, :retryable) }

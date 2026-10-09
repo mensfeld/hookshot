@@ -23,6 +23,10 @@ Rails.application.routes.draw do
       member do
         post :retry
       end
+      collection do
+        post :retry_selected
+        post :retry_all
+      end
     end
 
     resources :targets do
