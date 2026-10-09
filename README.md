@@ -104,7 +104,8 @@ curl -X POST http://localhost:3000/webhooks/receive \
 Access the admin UI at `http://localhost:3000/admin/webhooks` with HTTP Basic Auth.
 
 - **Webhooks**: View received webhooks, inspect headers/payload, replay to targets
-- **Dispatches**: Monitor delivery status, retry failed deliveries
+- **Dispatches**: Monitor delivery status, retry failed deliveries one by one, in bulk by selecting rows, or all
+  that match the current filters at once
 - **Targets**: Configure destination endpoints with filters
 - **Jobs**: Solid Queue dashboard at `/jobs`
 
@@ -202,10 +203,14 @@ Each delivery includes these headers:
 
 Failed deliveries are retried with exponential backoff:
 
-- Up to 5 attempts
+- Up to 10 attempts over roughly 40 hours
 - Increasing delay between retries
 - Client errors (4xx) are not retried
 - Server errors (5xx) and timeouts are retried
+
+Failed deliveries with attempts left can also be retried manually from the Dispatches page: individually, by
+selecting rows (shift-click selects a range) and using **Retry selected**, or with **Retry all matching**, which
+queues every retryable delivery for the current status and target filters across all pages (up to 1000 per click).
 
 ## Docker Deployment
 

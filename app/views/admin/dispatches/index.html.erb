@@ -21,12 +21,42 @@
   <% end %>
 </div>
 
-<div class="bg-base-100 rounded-box border border-base-300">
+<div class="bg-base-100 rounded-box border border-base-300" data-controller="bulk-select">
   <% if @deliveries.any? %>
+    <% retryable_on_page = @deliveries.any?(&:retryable?) %>
+    <% if retryable_on_page || @retryable_count.positive? %>
+      <div class="flex flex-wrap items-center gap-2 p-3 border-b border-base-300">
+        <% if retryable_on_page %>
+          <%= form_with url: retry_selected_admin_dispatches_path, method: :post, id: "bulk-retry-form", class: "flex items-center gap-2" do %>
+            <% listing_params = { status: params[:status], target_id: params[:target_id], page: params[:page] }.compact_blank %>
+            <% listing_params.each do |name, value| %>
+              <%= hidden_field_tag name, value, id: nil %>
+            <% end %>
+            <button type="submit" class="btn btn-primary btn-sm" data-bulk-select-target="submit" disabled>
+              <span>Retry selected (<span data-bulk-select-target="count">0</span>)</span>
+            </button>
+          <% end %>
+          <span class="text-xs text-base-content/60">Shift-click to select a range</span>
+        <% end %>
+        <% if @retryable_count.positive? %>
+          <%= button_to "Retry all matching (#{@retryable_count})", retry_all_admin_dispatches_path, method: :post,
+              params: { status: params[:status], target_id: params[:target_id] }.compact_blank,
+              form_class: "inline-flex sm:ml-auto", class: "btn btn-outline btn-sm",
+              data: { turbo_confirm: "Retry all #{@retryable_count} retryable dispatches matching the current filters?" } %>
+        <% end %>
+      </div>
+    <% end %>
+
     <div class="overflow-x-auto">
       <table class="table">
         <thead>
           <tr class="border-b border-base-300">
+            <th class="w-8">
+              <% if retryable_on_page %>
+                <input type="checkbox" class="checkbox checkbox-sm" aria-label="Select all retryable dispatches on this page"
+                       data-bulk-select-target="all" data-action="change->bulk-select#toggleAll">
+              <% end %>
+            </th>
             <th>ID</th>
             <th>Webhook</th>
             <th>Target</th>
@@ -40,6 +70,13 @@
         <tbody>
           <% @deliveries.each do |delivery| %>
             <tr class="border-b border-base-200 hover:bg-base-200 transition-colors cursor-pointer" data-href="<%= admin_dispatch_path(delivery) %>" onclick="window.location=this.dataset.href">
+              <td data-action="click->bulk-select#stop">
+                <% if delivery.retryable? %>
+                  <input type="checkbox" name="delivery_ids[]" value="<%= delivery.id %>" form="bulk-retry-form"
+                         class="checkbox checkbox-sm" aria-label="Select dispatch <%= delivery.id %>"
+                         data-bulk-select-target="item" data-action="click->bulk-select#toggle">
+                <% end %>
+              </td>
               <td class="font-mono text-sm"><%= delivery.id %></td>
               <td>
                 <%= link_to "##{delivery.webhook_id}", admin_webhook_path(delivery.webhook_id), class: "link link-primary" %>

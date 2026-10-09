@@ -32,6 +32,7 @@ class Delivery < ApplicationRecord
   ACTIVEJOB_MAX_ATTEMPTS = 5
 
   scope :recent_24h, -> { where("created_at >= ?", 24.hours.ago) }
+  scope :retryable, -> { failed.where("attempts < ?", MAX_TOTAL_ATTEMPTS) }
   scope :ready_for_retry, lambda {
     where(status: :failed, retry_stage: :recurring_job_phase)
       .where("next_retry_at <= ?", Time.current)
@@ -83,5 +84,20 @@ class Delivery < ApplicationRecord
   # @return [Boolean] true if reset was successful
   def reset_for_retry!
     update!(status: :pending)
+  end
+
+  # Queues a manual retry of a failed delivery. The delivery is claimed with a conditional update, so concurrent
+  # retries (a double click, overlapping bulk retries) queue it only once.
+  # @return [Boolean] true if the retry was queued, false if the delivery is not (or no longer) retryable
+  def retry!
+    return false unless retryable?
+
+    claimed = self.class.retryable.where(id: id).update_all(status: self.class.statuses[:pending], updated_at: Time.current)
+    return false if claimed.zero?
+
+    self.status = :pending
+    clear_attribute_change(:status)
+    DispatchJob.perform_later(id)
+    true
   end
 end
