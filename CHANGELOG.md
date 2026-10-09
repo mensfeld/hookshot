@@ -1,6 +1,6 @@
 # Hookshot changelog
 
-## 1.4.0 (Unreleased)
+## 1.4.0 (2026-10-09)
 - [Feature] Bulk retry on the Dispatches page: select retryable rows (with a select-all checkbox and shift-click range selection) and use "Retry selected".
 - [Feature] "Retry all matching" queues every retryable dispatch for the current status and target filters across all pages (up to 1000 per click, reporting how many remain).
 - [Enhancement] Manual retries claim the delivery atomically, so double clicks or overlapping bulk retries queue each delivery only once.
