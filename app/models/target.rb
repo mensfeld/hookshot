@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-# Represents a destination endpoint for webhook delivery.
-# Targets have associated filters that determine which webhooks are delivered.
+# Represents a destination URL for webhook delivery.
+# A target receives webhooks from the endpoints it is attached to, narrowed down by its filters.
 class Target < ApplicationRecord
   has_many :filters, dependent: :destroy
   has_many :deliveries, dependent: :nullify
+  has_many :endpoint_targets, dependent: :destroy
+  has_many :endpoints, through: :endpoint_targets
 
   validates :name, :url, presence: true
   validates :url, format: { with: URI::RFC2396_PARSER.make_regexp(%w[http https]), message: "must be a valid HTTP(S) URL" }

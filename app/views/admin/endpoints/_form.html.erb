@@ -1,0 +1,74 @@
+<%= form_with model: [:admin, @endpoint], class: "space-y-6" do |f| %>
+  <% if @endpoint.errors.any? %>
+    <div class="alert alert-error">
+      <ul class="list-disc list-inside text-sm">
+        <% @endpoint.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <label class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">Name</span>
+      <%= f.text_field :name, class: "input input-bordered w-full", placeholder: "GitHub deploys" %>
+    </label>
+
+    <label class="form-control">
+      <span class="label-text text-xs uppercase tracking-wide mb-1">Slug</span>
+      <%= f.text_field :slug, class: "input input-bordered w-full font-mono", placeholder: "derived from the name",
+          disabled: @endpoint.persisted? && @endpoint.default?, maxlength: Endpoint::SLUG_MAX_LENGTH %>
+      <span class="text-xs text-base-content/60 mt-1">
+        <% if @endpoint.persisted? && @endpoint.default? %>
+          The default endpoint always receives on <code>/webhooks/receive</code>.
+        <% else %>
+          Webhooks are received on <code>/webhooks/receive/&lt;slug&gt;</code>. Lowercase letters, digits and dashes.
+          <% if @endpoint.persisted? %>Changing it changes the URL senders must use.<% end %>
+        <% end %>
+      </span>
+    </label>
+  </div>
+
+  <label class="form-control">
+    <span class="label-text text-xs uppercase tracking-wide mb-1">Description</span>
+    <%= f.text_area :description, rows: 2, class: "textarea textarea-bordered w-full", placeholder: "Optional notes, e.g. which sender posts here" %>
+  </label>
+
+  <div class="form-control">
+    <span class="label-text text-xs uppercase tracking-wide mb-1">Status</span>
+    <label class="cursor-pointer flex items-center gap-3 h-12">
+      <%= f.check_box :active, class: "toggle toggle-success" %>
+      <span class="text-sm">Accept webhooks (inactive endpoints answer 404 and store nothing)</span>
+    </label>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-1">Forward to targets</h3>
+    <p class="text-sm text-base-content/60 mb-3">Webhooks received here go to the selected targets, each still subject to its own filters.</p>
+    <% targets = Target.order(:name) %>
+    <% if targets.any? %>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <%= f.collection_check_boxes :target_ids, targets, :id, :name do |b| %>
+          <label class="flex items-center gap-3 bg-base-200 rounded-box px-3 py-2 cursor-pointer">
+            <%= b.check_box class: "checkbox checkbox-sm" %>
+            <span class="text-sm min-w-0">
+              <span class="font-medium"><%= b.text %></span>
+              <span class="block font-mono text-xs text-base-content/60 truncate"><%= b.object.url %></span>
+            </span>
+            <% unless b.object.active? %>
+              <span class="badge badge-xs badge-ghost ml-auto">inactive</span>
+            <% end %>
+          </label>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-sm text-base-content/60">No targets yet. <%= link_to "Add a target", new_admin_target_path, class: "link" %> first.</p>
+    <% end %>
+  </div>
+
+  <div class="border-t border-base-300 pt-6 flex gap-2">
+    <%= f.submit @endpoint.new_record? ? "Create Endpoint" : "Update Endpoint", class: "btn btn-primary" %>
+    <%= link_to "Cancel", @endpoint.persisted? ? admin_endpoint_path(@endpoint) : admin_endpoints_path, class: "btn btn-ghost" %>
+  </div>
+<% end %>

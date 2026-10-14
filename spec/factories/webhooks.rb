@@ -7,6 +7,7 @@ FactoryBot.define do
     content_type { "application/json" }
     source_ip { "127.0.0.1" }
     received_at { Time.current }
+    endpoint { Endpoint.default }
 
     trait :without_payload do
       payload { nil }

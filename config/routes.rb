@@ -2,7 +2,8 @@
 
 Rails.application.routes.draw do
   # Public endpoints (no authentication)
-  post "/webhooks/receive", to: "webhooks/receive#create"
+  post "/webhooks/receive", to: "webhooks/receive#create", as: :webhooks_receive
+  post "/webhooks/receive/:endpoint_slug", to: "webhooks/receive#create", as: :webhooks_receive_endpoint
   get "/health", to: "health#show"
 
   # Rails health check
@@ -28,6 +29,8 @@ Rails.application.routes.draw do
         post :retry_all
       end
     end
+
+    resources :endpoints
 
     resources :targets do
       member do

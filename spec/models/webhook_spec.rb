@@ -11,6 +11,18 @@ RSpec.describe Webhook do
 
   describe "associations" do
     it { is_expected.to have_many(:deliveries).dependent(:destroy) }
+    it { is_expected.to belong_to(:endpoint).optional }
+  end
+
+  describe ".for_endpoint" do
+    it "narrows webhooks to one endpoint and returns all without an id" do
+      endpoint = create(:endpoint)
+      own = create(:webhook, endpoint: endpoint)
+      other = create(:webhook)
+
+      expect(described_class.for_endpoint(endpoint.id)).to contain_exactly(own)
+      expect(described_class.for_endpoint("")).to contain_exactly(own, other)
+    end
   end
 
   describe "scopes" do

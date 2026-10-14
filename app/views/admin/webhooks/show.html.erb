@@ -9,7 +9,7 @@
   </div>
   <div class="flex gap-2">
     <%= button_to "Replay", replay_admin_webhook_path(@webhook), method: :post, class: "btn btn-primary btn-sm",
-        data: { turbo_confirm: "Replay this webhook to all active targets?" } %>
+        data: { turbo_confirm: @webhook.endpoint ? "Replay this webhook to the active targets of endpoint #{@webhook.endpoint.name}?" : "Replay this webhook?" } %>
     <%= button_to "Delete", admin_webhook_path(@webhook), method: :delete, class: "btn btn-error btn-outline btn-sm",
         data: { turbo_confirm: "Delete this webhook and all its deliveries?" } %>
   </div>
@@ -17,10 +17,20 @@
 
 <!-- Metadata bar -->
 <div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
     <div>
       <div class="text-base-content/60 text-xs uppercase tracking-wide">Received</div>
       <div class="font-medium"><%= @webhook.received_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Endpoint</div>
+      <div>
+        <% if @webhook.endpoint %>
+          <%= link_to @webhook.endpoint.name, admin_endpoint_path(@webhook.endpoint), class: "link link-hover font-medium" %>
+        <% else %>
+          <span class="text-base-content/60">(deleted)</span>
+        <% end %>
+      </div>
     </div>
     <div>
       <div class="text-base-content/60 text-xs uppercase tracking-wide">Source IP</div>

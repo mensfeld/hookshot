@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 # Handles dispatching webhooks to configured targets.
-# Creates delivery records and enqueues jobs for targets that pass filters.
+# Routes a webhook to the targets of its endpoint, creating delivery records and enqueuing jobs for those that
+# pass their filters.
 class WebhookDispatcher
   # Initializes a new dispatcher for a webhook.
   # @param webhook [Webhook] the webhook to dispatch
@@ -9,11 +10,13 @@ class WebhookDispatcher
     @webhook = webhook
   end
 
-  # Dispatches the webhook to all active targets.
-  # Creates a delivery record for each target and enqueues dispatch jobs.
+  # Dispatches the webhook to the active targets of the endpoint that received it.
+  # Creates a delivery record for each target and enqueues dispatch jobs for those passing their filters.
   # @return [void]
-  def dispatch_to_all_targets
-    Target.active.find_each do |target|
+  def dispatch
+    return unless @webhook.endpoint
+
+    @webhook.endpoint.targets.active.find_each do |target|
       dispatch_to_target(target)
     end
   end

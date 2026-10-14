@@ -37,6 +37,23 @@
   </div>
 
   <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-1">Endpoints</h3>
+    <p class="text-sm text-base-content/60 mb-3">Receive webhooks sent to these endpoints. Without any, this target receives nothing.</p>
+    <div class="flex flex-wrap gap-2">
+      <%= f.collection_check_boxes :endpoint_ids, Endpoint.order(:name), :id, :name do |b| %>
+        <label class="flex items-center gap-2 bg-base-200 rounded-box px-3 py-2 cursor-pointer">
+          <%= b.check_box class: "checkbox checkbox-sm" %>
+          <span class="text-sm"><%= b.text %></span>
+          <span class="font-mono text-xs text-base-content/60"><%= b.object.default? ? "/webhooks/receive" : "/webhooks/receive/#{b.object.slug}" %></span>
+          <% unless b.object.active? %>
+            <span class="badge badge-xs badge-ghost">inactive</span>
+          <% end %>
+        </label>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-3">Custom Headers</h3>
     <div id="custom-headers" class="space-y-2" data-controller="headers">
       <% (@target.custom_headers.presence || {}).each do |key, value| %>

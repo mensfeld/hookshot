@@ -1,0 +1,6 @@
+<%# The URL senders post to, with a copy button. %>
+<% url = endpoint_receive_url(endpoint) %>
+<div class="flex items-center gap-2 min-w-0" data-controller="clipboard" data-clipboard-text-value="<%= url %>">
+  <code class="text-xs font-mono bg-base-200 rounded px-2 py-1 break-all"><%= url %></code>
+  <button type="button" class="btn btn-ghost btn-xs" data-clipboard-target="button" data-action="click->clipboard#copy">Copy</button>
+</div>

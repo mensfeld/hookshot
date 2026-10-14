@@ -29,6 +29,8 @@
             class: "btn btn-sm #{controller_name == 'webhooks' ? 'btn-primary' : 'btn-outline'}" %>
         <%= link_to "Dispatches", admin_dispatches_path,
             class: "btn btn-sm #{controller_name == 'dispatches' ? 'btn-primary' : 'btn-outline'}" %>
+        <%= link_to "Endpoints", admin_endpoints_path,
+            class: "btn btn-sm #{controller_name == 'endpoints' ? 'btn-primary' : 'btn-outline'}" %>
         <%= link_to "Targets", admin_targets_path,
             class: "btn btn-sm #{controller_name == 'targets' ? 'btn-primary' : 'btn-outline'}" %>
         <%= link_to "Errors", errors_path,
@@ -65,6 +67,7 @@
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[100] p-2 shadow bg-base-100 rounded-box w-52">
           <li><%= link_to "Webhooks", admin_webhooks_path %></li>
           <li><%= link_to "Dispatches", admin_dispatches_path %></li>
+          <li><%= link_to "Endpoints", admin_endpoints_path %></li>
           <li><%= link_to "Targets", admin_targets_path %></li>
           <li><%= link_to "Errors", errors_path %></li>
           <li><%= link_to "Jobs", "/jobs" %></li>

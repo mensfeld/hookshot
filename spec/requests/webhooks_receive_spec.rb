@@ -171,4 +171,115 @@ RSpec.describe "POST /webhooks/receive" do
       end
     end
   end
+
+  describe "endpoints" do
+    let(:payload) { { action: "opened" }.to_json }
+    let(:json) { { "CONTENT_TYPE" => "application/json" } }
+    let(:deploys) { create(:endpoint, name: "Deploys", slug: "deploys") }
+    let(:issues) { create(:endpoint, name: "Issues", slug: "issues") }
+    let!(:legacy_target) { create(:target, name: "Legacy") }
+    let!(:deploys_target) { create(:target, name: "Deploy bot", endpoints: [ deploys ]) }
+    let!(:issues_target) { create(:target, name: "Issue tracker", endpoints: [ issues ]) }
+
+    def delivered_target_names
+      Delivery.where(webhook: Webhook.last).map { |delivery| delivery.target.name }
+    end
+
+    it "routes the plain receive URL to the default endpoint's targets" do
+      post "/webhooks/receive", params: payload, headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(Endpoint.default)
+      expect(delivered_target_names).to eq([ "Legacy" ])
+    end
+
+    it "routes an endpoint URL only to that endpoint's targets" do
+      post "/webhooks/receive/deploys", params: payload, headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(deploys)
+      expect(delivered_target_names).to eq([ "Deploy bot" ])
+    end
+
+    it "routes identical payloads differently depending on the URL" do
+      post "/webhooks/receive/deploys", params: payload, headers: json
+      post "/webhooks/receive/issues", params: payload, headers: json
+
+      expect(Delivery.joins(:target).pluck("targets.name")).to contain_exactly("Deploy bot", "Issue tracker")
+    end
+
+    it "accepts the default endpoint by its slug too" do
+      post "/webhooks/receive/default", params: payload, headers: json
+
+      expect(delivered_target_names).to eq([ "Legacy" ])
+    end
+
+    it "answers 404 for an unknown endpoint and stores nothing" do
+      expect { post "/webhooks/receive/nope", params: payload, headers: json }
+        .not_to change(Webhook, :count)
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body).to eq("error" => "Unknown endpoint")
+    end
+
+    it "answers 404 for an inactive endpoint and stores nothing" do
+      deploys.update!(active: false)
+
+      expect { post "/webhooks/receive/deploys", params: payload, headers: json }
+        .not_to change(Webhook, :count)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "answers 404 on the plain URL when the default endpoint is inactive" do
+      Endpoint.default.update!(active: false)
+
+      expect { post "/webhooks/receive", params: payload, headers: json }.not_to change(Webhook, :count)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "still rejects oversized payloads before looking up the endpoint" do
+      stub_const("Webhooks::ReceiveController::MAX_PAYLOAD_SIZE", 10)
+
+      post "/webhooks/receive/nope", params: payload, headers: json
+
+      expect(response).to have_http_status(:payload_too_large)
+    end
+
+    it "matches slugs the way they are normalized (case-insensitive, underscores as dashes)" do
+      post "/webhooks/receive/Deploys", params: payload, headers: json
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(deploys)
+
+      create(:endpoint, slug: "issue-comments")
+      post "/webhooks/receive/issue_comments", params: payload, headers: json
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "still applies each target's filters" do
+      create(:filter, target: deploys_target, filter_type: :payload, field: "$.action", operator: :equals, value: "closed")
+
+      post "/webhooks/receive/deploys", params: payload, headers: json
+
+      expect(Delivery.find_by(target: deploys_target)).to be_filtered
+    end
+
+    it "stores webhooks for an endpoint without targets without forwarding them" do
+      create(:endpoint, slug: "quiet")
+
+      expect { post "/webhooks/receive/quiet", params: payload, headers: json }.to change(Webhook, :count).by(1)
+      expect(response).to have_http_status(:ok)
+      expect(Delivery.where(webhook: Webhook.last)).to be_empty
+    end
+  end
+
+  describe "on a database built from the schema (no default endpoint yet)" do
+    it "creates the default endpoint on first use of the plain URL" do
+      expect(Endpoint.count).to eq(0)
+
+      expect { post "/webhooks/receive", params: "{}", headers: { "CONTENT_TYPE" => "application/json" } }
+        .to change(Endpoint, :count).by(1)
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to be_default
+    end
+  end
 end

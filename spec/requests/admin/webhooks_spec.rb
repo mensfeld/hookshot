@@ -181,6 +181,61 @@ RSpec.describe "Admin Webhooks" do
       post "/admin/webhooks/#{webhook.id}/replay", headers: auth_headers
 
       expect(response).to redirect_to(admin_webhook_path(webhook))
+      expect(flash[:notice]).to eq("Webhook queued for replay to the active targets of endpoint Default")
+    end
+
+    it "replays only to the current targets of the webhook's endpoint" do
+      deploys = create(:endpoint, name: "Deploys", slug: "deploys")
+      deploys_target = create(:target, endpoints: [ deploys ])
+      deploys_webhook = create(:webhook, endpoint: deploys)
+
+      post "/admin/webhooks/#{deploys_webhook.id}/replay", headers: auth_headers
+
+      expect(Delivery.where(webhook: deploys_webhook).pluck(:target_id)).to eq([ deploys_target.id ])
+      expect(flash[:notice]).to include("endpoint Deploys")
+    end
+
+    it "refuses to replay a webhook whose endpoint was deleted" do
+      orphan = create(:webhook, endpoint: nil)
+
+      expect { post "/admin/webhooks/#{orphan.id}/replay", headers: auth_headers }.not_to change(Delivery, :count)
+      expect(flash[:alert]).to eq("This webhook's endpoint was deleted, so it cannot be replayed")
+    end
+  end
+
+  describe "endpoints on the webhook pages" do
+    let(:deploys) { create(:endpoint, name: "Deploys", slug: "deploys") }
+    let!(:deploys_webhook) { create(:webhook, endpoint: deploys, payload: '{"from":"deploys"}') }
+    let!(:default_webhook) { create(:webhook, payload: '{"from":"default"}') }
+    let!(:orphan_webhook) { create(:webhook, endpoint: nil, payload: '{"from":"orphan"}') }
+
+    def row_ids
+      Nokogiri::HTML(response.body).css("tbody tr td:first-child").map { |cell| cell.text.strip.to_i }
+    end
+
+    it "lists the endpoint of each webhook" do
+      get "/admin/webhooks", headers: auth_headers
+
+      expect(response.body).to include("Deploys", "Default", "(deleted)")
+    end
+
+    it "filters webhooks by endpoint" do
+      get "/admin/webhooks", params: { endpoint_id: deploys.id }, headers: auth_headers
+
+      expect(row_ids).to eq([ deploys_webhook.id ])
+      expect(Nokogiri::HTML(response.body).at_css("select[name='endpoint_id'] option[selected]").text).to eq("Deploys")
+    end
+
+    it "combines the endpoint filter with search" do
+      get "/admin/webhooks", params: { endpoint_id: deploys.id, q: "default" }, headers: auth_headers
+
+      expect(row_ids).to be_empty
+    end
+
+    it "shows the endpoint on the webhook page" do
+      get "/admin/webhooks/#{deploys_webhook.id}", headers: auth_headers
+
+      expect(Nokogiri::HTML(response.body).at_css("a[href='/admin/endpoints/#{deploys.id}']").text).to eq("Deploys")
     end
   end
 end

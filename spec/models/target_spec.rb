@@ -29,6 +29,8 @@ RSpec.describe Target do
 
   describe "associations" do
     it { is_expected.to have_many(:filters).dependent(:destroy) }
+    it { is_expected.to have_many(:endpoint_targets).dependent(:destroy) }
+    it { is_expected.to have_many(:endpoints).through(:endpoint_targets) }
     it { is_expected.to have_many(:deliveries).dependent(:nullify) }
   end
 

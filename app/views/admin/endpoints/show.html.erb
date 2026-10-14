@@ -1,0 +1,64 @@
+<div class="flex justify-between items-center mb-4">
+  <div class="flex gap-3 items-center">
+    <%= link_to admin_endpoints_path, class: "btn btn-ghost btn-sm btn-square" do %>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-xl font-bold"><%= @endpoint.name %></h1>
+    <span class="badge <%= @endpoint.active? ? 'badge-success' : 'badge-ghost' %>"><%= @endpoint.active? ? "Active" : "Inactive" %></span>
+    <% if @endpoint.default? %>
+      <span class="badge badge-outline">default</span>
+    <% end %>
+  </div>
+  <div class="flex gap-2">
+    <%= link_to "Edit", edit_admin_endpoint_path(@endpoint), class: "btn btn-primary btn-sm" %>
+    <% unless @endpoint.default? %>
+      <%= button_to "Delete", admin_endpoint_path(@endpoint), method: :delete, class: "btn btn-error btn-outline btn-sm",
+          data: { turbo_confirm: "Delete endpoint '#{@endpoint.name}'? Senders posting to its URL will get 404." } %>
+    <% end %>
+  </div>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <div class="text-base-content/60 text-xs uppercase tracking-wide mb-1">Receive URL</div>
+  <%= render "receive_url", endpoint: @endpoint %>
+  <% unless @endpoint.active? %>
+    <p class="text-xs text-warning mt-2">This endpoint is inactive: requests to its URL get 404 and are not stored.</p>
+  <% end %>
+  <% if @endpoint.description.present? %>
+    <p class="text-sm mt-3"><%= @endpoint.description %></p>
+  <% end %>
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Webhooks (24h)</div>
+      <div><%= link_to @endpoint.webhooks_count_24h, admin_webhooks_path(endpoint_id: @endpoint.id), class: "link" %></div>
+    </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Last received</div>
+      <div><%= @endpoint.last_received_at&.strftime("%Y-%m-%d %H:%M:%S") || "Never" %></div>
+    </div>
+  </div>
+</div>
+
+<div class="bg-base-100 rounded-box border border-base-300 p-4">
+  <h3 class="font-medium mb-3">Forwards to</h3>
+  <% if @endpoint.targets.any? %>
+    <div class="flex flex-col gap-2">
+      <% @endpoint.targets.order(:name).each do |target| %>
+        <div class="flex items-center gap-3 text-sm">
+          <%= link_to target.name, admin_target_path(target), class: "link link-hover font-medium" %>
+          <span class="font-mono text-xs text-base-content/60 truncate"><%= target.url %></span>
+          <% unless target.active? %>
+            <span class="badge badge-sm badge-ghost">inactive</span>
+          <% end %>
+          <% if target.filters.any? %>
+            <span class="badge badge-sm badge-ghost"><%= pluralize(target.filters.size, "filter") %></span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-sm text-warning">No targets: webhooks sent here are stored but not forwarded anywhere.</p>
+  <% end %>
+</div>

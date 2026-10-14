@@ -7,6 +7,12 @@ FactoryBot.define do
     active { true }
     custom_headers { {} }
     timeout { 30 }
+    # Like targets created before endpoints existed, receive from the default endpoint unless told otherwise
+    endpoints { [ Endpoint.default ] }
+
+    trait :without_endpoints do
+      endpoints { [] }
+    end
 
     trait :inactive do
       active { false }

@@ -3,7 +3,7 @@
 # Namespace for webhook reception controllers.
 module Webhooks
   # Handles incoming webhook requests.
-  # Stores the webhook and dispatches it to configured targets.
+  # Stores the webhook with the endpoint it was sent to and dispatches it to that endpoint's targets.
   class ReceiveController < ApplicationController
     skip_before_action :verify_authenticity_token
 
@@ -11,14 +11,21 @@ module Webhooks
     MAX_PAYLOAD_SIZE = ENV.fetch("MAX_PAYLOAD_SIZE", 1_048_576).to_i
 
     # Receives and processes an incoming webhook.
-    # @return [void] responds with 200 OK on success
+    # @return [void] responds with 200 OK on success, 404 for an unknown or inactive endpoint
     def create
       if request.raw_post.bytesize > MAX_PAYLOAD_SIZE
         render json: { error: "Payload too large" }, status: :payload_too_large
         return
       end
 
+      endpoint = find_endpoint
+      unless endpoint
+        render json: { error: "Unknown endpoint" }, status: :not_found
+        return
+      end
+
       webhook = Webhook.create!(
+        endpoint: endpoint,
         headers: extract_headers,
         payload: to_utf8(request.raw_post),
         content_type: request.content_type || "application/octet-stream",
@@ -26,7 +33,7 @@ module Webhooks
         received_at: Time.current
       )
 
-      WebhookDispatcher.new(webhook).dispatch_to_all_targets
+      WebhookDispatcher.new(webhook).dispatch
 
       head :ok
     rescue ActiveRecord::RecordInvalid => e
@@ -34,6 +41,14 @@ module Webhooks
     end
 
     private
+
+    # Finds the active endpoint addressed by the request: the slug from the URL, or the default endpoint for the
+    # plain /webhooks/receive URL.
+    # @return [Endpoint, nil] the endpoint, or nil when it does not exist or is inactive
+    def find_endpoint
+      endpoint = params[:endpoint_slug] ? Endpoint.find_by(slug: params[:endpoint_slug]) : Endpoint.default
+      endpoint if endpoint&.active?
+    end
 
     # Extracts relevant headers from the request.
     # @return [Hash] filtered headers including HTTP_* and content headers
