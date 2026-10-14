@@ -222,6 +222,83 @@ RSpec.describe "Admin Targets" do
     end
   end
 
+  describe "endpoint assignment" do
+    let(:base) { { name: "Bot", url: "https://bot.example.com/hook", active: true, timeout: 30 } }
+    let!(:deploys) { create(:endpoint, name: "Deploys", slug: "deploys") }
+
+    def html
+      Nokogiri::HTML(response.body)
+    end
+
+    it "pre-selects the default endpoint for a new target" do
+      get "/admin/targets/new", headers: auth_headers
+
+      checked = html.css("input[name='target[endpoint_ids][]'][checked]").map { |input| input["value"] }
+      expect(checked).to eq([ Endpoint.default.id.to_s ])
+      expect(html.css("input[name='target[endpoint_ids][]'][type='checkbox']").size).to eq(2)
+    end
+
+    it "attaches the selected endpoints" do
+      post "/admin/targets", headers: auth_headers, params: { target: base.merge(endpoint_ids: [ "", deploys.id ]) }
+
+      expect(Target.last.endpoints).to eq([ deploys ])
+    end
+
+    it "creates a target without endpoints when every box is unchecked" do
+      post "/admin/targets", headers: auth_headers, params: { target: base.merge(endpoint_ids: [ "" ]) }
+
+      expect(Target.last.endpoints).to be_empty
+    end
+
+    it "attaches the default endpoint when the request does not mention endpoints at all" do
+      post "/admin/targets", headers: auth_headers, params: { target: base }
+
+      expect(Target.last.endpoints).to eq([ Endpoint.default ])
+    end
+
+    it "changes endpoints on update" do
+      target = create(:target)
+
+      patch "/admin/targets/#{target.id}", headers: auth_headers, params: { target: { endpoint_ids: [ "", deploys.id ] } }
+
+      expect(target.reload.endpoints).to eq([ deploys ])
+    end
+
+    it "keeps endpoints when an update does not mention them (e.g. the active toggle)" do
+      target = create(:target, endpoints: [ deploys ])
+
+      patch "/admin/targets/#{target.id}", headers: auth_headers, params: { target: { active: false } }
+
+      expect(target.reload.endpoints).to eq([ deploys ])
+    end
+
+    it "shows endpoints on the index and flags targets without any" do
+      create(:target, name: "Routed", endpoints: [ deploys ])
+      create(:target, name: "Orphan", endpoints: [])
+
+      get "/admin/targets", headers: auth_headers
+
+      expect(response.body).to include("No endpoint – receives nothing")
+      expect(html.at_css("a.badge[href='/admin/endpoints/#{deploys.id}']").text).to eq("Deploys")
+    end
+
+    it "lists the endpoints a target receives from on its page" do
+      target = create(:target, endpoints: [ deploys ])
+
+      get "/admin/targets/#{target.id}", headers: auth_headers
+
+      expect(response.body).to include("Receives from", "http://www.example.com/webhooks/receive/deploys")
+    end
+
+    it "warns on the target page when it has no endpoints" do
+      target = create(:target, :without_endpoints)
+
+      get "/admin/targets/#{target.id}", headers: auth_headers
+
+      expect(response.body).to include("Not attached to any endpoint, so this target receives nothing.")
+    end
+  end
+
   describe "GET /admin/targets/:id" do
     let(:target) { create(:target) }
 

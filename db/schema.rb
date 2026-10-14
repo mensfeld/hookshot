@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_30_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -31,6 +31,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_30_120000) do
     t.index ["target_id"], name: "index_deliveries_on_target_id"
     t.index ["webhook_id", "target_id"], name: "index_deliveries_on_webhook_id_and_target_id"
     t.index ["webhook_id"], name: "index_deliveries_on_webhook_id"
+  end
+
+  create_table "endpoint_targets", force: :cascade do |t|
+    t.integer "endpoint_id", null: false
+    t.integer "target_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["endpoint_id", "target_id"], name: "index_endpoint_targets_on_endpoint_id_and_target_id", unique: true
+    t.index ["target_id"], name: "index_endpoint_targets_on_target_id"
+  end
+
+  create_table "endpoints", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_endpoints_on_slug", unique: true
   end
 
   create_table "error_records", force: :cascade do |t|
@@ -83,10 +102,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_30_120000) do
     t.datetime "received_at", null: false
     t.string "source_ip", null: false
     t.datetime "updated_at", null: false
+    t.integer "endpoint_id"
+    t.index ["endpoint_id"], name: "index_webhooks_on_endpoint_id"
     t.index ["received_at"], name: "index_webhooks_on_received_at"
   end
 
   add_foreign_key "deliveries", "targets"
   add_foreign_key "deliveries", "webhooks"
+  add_foreign_key "endpoint_targets", "endpoints"
+  add_foreign_key "endpoint_targets", "targets"
   add_foreign_key "filters", "targets"
+  add_foreign_key "webhooks", "endpoints"
 end

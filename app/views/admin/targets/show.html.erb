@@ -32,6 +32,25 @@
   </div>
 </div>
 
+<div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
+  <h3 class="font-medium mb-3">Receives from</h3>
+  <% if @target.endpoints.any? %>
+    <div class="flex flex-col gap-2">
+      <% @target.endpoints.order(:name).each do |endpoint| %>
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+          <%= link_to endpoint.name, admin_endpoint_path(endpoint), class: "link link-hover font-medium" %>
+          <span class="font-mono text-xs text-base-content/60"><%= endpoint_receive_url(endpoint) %></span>
+          <% unless endpoint.active? %>
+            <span class="badge badge-sm badge-ghost">inactive</span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-sm text-warning">Not attached to any endpoint, so this target receives nothing.</p>
+  <% end %>
+</div>
+
 <% if @target.custom_headers.present? %>
   <div class="bg-base-100 rounded-box border border-base-300 p-4 mb-4">
     <h3 class="font-medium mb-3">Custom Headers</h3>

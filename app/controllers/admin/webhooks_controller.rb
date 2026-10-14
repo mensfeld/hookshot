@@ -8,10 +8,12 @@ module Admin
     # Lists all webhooks with pagination and filtering.
     # @return [void]
     def index
-      @webhooks = Webhook.includes(:deliveries).order(received_at: :desc)
+      @webhooks = Webhook.includes(:deliveries, :endpoint).order(received_at: :desc)
+      @webhooks = @webhooks.for_endpoint(params[:endpoint_id])
       @webhooks = filter_by_date(@webhooks)
       @webhooks = filter_by_search(@webhooks)
       @webhooks = @webhooks.page(params[:page]).per(50)
+      @endpoints = Endpoint.order(:name)
     end
 
     # Shows webhook details and its deliveries.
@@ -30,8 +32,14 @@ module Admin
     # Replays the webhook to all active targets.
     # @return [void]
     def replay
-      WebhookDispatcher.new(@webhook).dispatch_to_all_targets
-      redirect_to admin_webhook_path(@webhook), notice: "Webhook queued for replay to all active targets"
+      unless @webhook.endpoint
+        redirect_to admin_webhook_path(@webhook), alert: "This webhook's endpoint was deleted, so it cannot be replayed"
+        return
+      end
+
+      WebhookDispatcher.new(@webhook).dispatch
+      redirect_to admin_webhook_path(@webhook),
+        notice: "Webhook queued for replay to the active targets of endpoint #{@webhook.endpoint.name}"
     end
 
     private

@@ -36,11 +36,12 @@ Then:
 ## Features
 
 - **Webhook Reception**: Accepts POST requests at `/webhooks/receive` and stores headers, payload, and metadata
-- **Multiple Targets**: Configure multiple destination endpoints for webhook delivery
+- **Endpoints**: Named inbound URLs (`/webhooks/receive/<slug>`) that each forward only to their own targets
+- **Multiple Targets**: Configure multiple destination URLs for webhook delivery
 - **Filtering**: Route webhooks to specific targets based on header or payload content
 - **Background Processing**: Reliable delivery with Solid Queue, including retries with exponential backoff
 - **Admin Dashboard**: View webhooks, dispatches, and manage targets with a clean DaisyUI interface
-- **Replay**: Re-dispatch any webhook to all active targets
+- **Replay**: Re-dispatch any webhook to the active targets of the endpoint that received it
 - **Health Check**: `/health` endpoint for monitoring
 
 ## Requirements
@@ -103,10 +104,11 @@ curl -X POST http://localhost:3000/webhooks/receive \
 
 Access the admin UI at `http://localhost:3000/admin/webhooks` with HTTP Basic Auth.
 
-- **Webhooks**: View received webhooks, inspect headers/payload, replay to targets
+- **Webhooks**: View received webhooks (filterable by endpoint), inspect headers/payload, replay to targets
 - **Dispatches**: Monitor delivery status, retry failed deliveries one by one, in bulk by selecting rows, or all
   that match the current filters at once
-- **Targets**: Configure destination endpoints with filters
+- **Endpoints**: Configure the inbound URLs and which targets each one forwards to
+- **Targets**: Configure destination URLs with filters
 - **Jobs**: Solid Queue dashboard at `/jobs`
 
 ### Configuring Targets
@@ -118,7 +120,30 @@ Each target has:
 - **Timeout**: Request timeout in seconds (1-300)
 - **Active**: Toggle to enable/disable delivery
 - **Custom Headers**: Additional headers to send with each request
+- **Endpoints**: The endpoints it receives webhooks from (a target without endpoints receives nothing)
 - **Filters**: Rules to determine which webhooks to deliver
+
+### Endpoints
+
+An endpoint is a named URL webhooks are posted to. Each endpoint forwards what it receives only to the targets
+attached to it, and each target's filters still apply. This lets one sending app route actions that carry identical
+payloads by posting them to different URLs:
+
+| Sender posts to | Endpoint | Forwards to |
+|-----------------|----------|-------------|
+| `https://hookshot.example.com/webhooks/receive/deploys` | Deploys | Deploy bot, Audit log |
+| `https://hookshot.example.com/webhooks/receive/tracker` | Tracker | Issue tracker, Audit log |
+| `https://hookshot.example.com/webhooks/receive` | Default | targets on the default endpoint |
+
+- **Default endpoint:** the plain `/webhooks/receive` URL belongs to the built-in `default` endpoint (also reachable
+  as `/webhooks/receive/default`). Upgrading attaches every existing target to it, so existing senders keep working
+  unchanged. It can be renamed or deactivated, but not deleted.
+- **Slugs:** lowercase letters, digits and dashes, derived from the name when left blank. They're matched the same
+  way, so `/webhooks/receive/Deploys` reaches `deploys`.
+- **Unknown or inactive endpoints:** they answer `404 {"error":"Unknown endpoint"}` and nothing is stored.
+- **Endpoints without targets:** webhooks are stored but not forwarded.
+- **Many-to-many:** a target can be attached to several endpoints, and an endpoint can have several targets.
+- **Replay:** sends a webhook to the current targets of the endpoint that received it.
 
 ### Filters
 
@@ -185,7 +210,8 @@ whitespace is stripped.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/webhooks/receive` | None | Receive incoming webhooks |
+| POST | `/webhooks/receive` | None | Receive incoming webhooks on the default endpoint |
+| POST | `/webhooks/receive/:slug` | None | Receive incoming webhooks on a named endpoint |
 | GET | `/health` | None | Health check endpoint |
 | GET | `/admin/*` | Basic | Admin dashboard |
 | GET | `/jobs` | Basic | Solid Queue dashboard |

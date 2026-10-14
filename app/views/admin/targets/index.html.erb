@@ -21,6 +21,16 @@
               <p class="text-xs font-mono text-base-content/60 truncate" title="<%= target.url %>">
                 <%= target.url %>
               </p>
+              <div class="flex flex-wrap items-center gap-1 mt-1">
+                <% if target.endpoints.any? %>
+                  <span class="text-xs text-base-content/60">From</span>
+                  <% target.endpoints.sort_by(&:name).each do |endpoint| %>
+                    <%= link_to endpoint.name, admin_endpoint_path(endpoint), class: "badge badge-xs badge-primary badge-outline" %>
+                  <% end %>
+                <% else %>
+                  <span class="badge badge-xs badge-warning">No endpoint – receives nothing</span>
+                <% end %>
+              </div>
               <% if target.filters.any? %>
                 <% summary = filter_logic_summary(target) %>
                 <p class="text-xs text-base-content/60 truncate" title="<%= summary %>"><%= summary %></p>

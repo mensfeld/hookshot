@@ -1,0 +1,48 @@
+<div class="flex justify-between items-center mb-4">
+  <div>
+    <h1 class="text-xl font-bold">Endpoints</h1>
+    <p class="text-sm text-base-content/60">Inbound URLs. Each endpoint forwards what it receives only to its targets.</p>
+  </div>
+  <%= link_to "Add Endpoint", new_admin_endpoint_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<div class="flex flex-col gap-3">
+  <% @endpoints.each do |endpoint| %>
+    <div class="bg-base-100 rounded-box border border-base-300 p-4" data-endpoint="<%= endpoint.slug %>">
+      <div class="flex flex-col md:flex-row md:items-center gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <%= link_to endpoint.name, admin_endpoint_path(endpoint), class: "font-medium link link-hover" %>
+            <% if endpoint.default? %>
+              <span class="badge badge-sm badge-outline">default</span>
+            <% end %>
+            <% unless endpoint.active? %>
+              <span class="badge badge-sm badge-ghost">inactive</span>
+            <% end %>
+          </div>
+          <div class="mt-1"><%= render "receive_url", endpoint: endpoint %></div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1 md:max-w-md md:justify-end">
+          <% if endpoint.targets.any? %>
+            <span class="text-xs text-base-content/60 mr-1">Forwards to</span>
+            <% endpoint.targets.sort_by(&:name).each do |target| %>
+              <%= link_to target.name, admin_target_path(target), class: "badge badge-sm #{target.active? ? 'badge-primary badge-outline' : 'badge-ghost'}",
+                  title: target.active? ? nil : "Inactive target" %>
+            <% end %>
+          <% else %>
+            <span class="badge badge-sm badge-warning">No targets – webhooks are stored but not forwarded</span>
+          <% end %>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <%= link_to "Edit", edit_admin_endpoint_path(endpoint), class: "btn btn-ghost btn-xs" %>
+          <% unless endpoint.default? %>
+            <%= button_to "Delete", admin_endpoint_path(endpoint), method: :delete, form_class: "inline-flex", class: "btn btn-ghost btn-xs text-error",
+                data: { turbo_confirm: "Delete endpoint '#{endpoint.name}'? Senders posting to its URL will get 404." } %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

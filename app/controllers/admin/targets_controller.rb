@@ -8,7 +8,7 @@ module Admin
     # Lists all targets with their filters.
     # @return [void]
     def index
-      @targets = Target.includes(:filters).order(:name)
+      @targets = Target.includes(:filters, :endpoints).order(:name)
     end
 
     # Shows target details.
@@ -19,7 +19,7 @@ module Admin
     # Renders the new target form.
     # @return [void]
     def new
-      @target = Target.new
+      @target = Target.new(endpoints: [ Endpoint.default ])
       @target.filters.build
     end
 
@@ -33,6 +33,9 @@ module Admin
     # @return [void]
     def create
       @target = Target.new(target_params)
+      # Requests without endpoint selection (e.g. scripted ones) keep the pre-endpoints behavior of receiving
+      # webhooks from the default URL. The form always submits the field, so unchecking everything is respected.
+      @target.endpoints = [ Endpoint.default ] unless params[:target].key?(:endpoint_ids)
 
       if @target.save
         redirect_to admin_targets_path, notice: "Target created successfully"
@@ -95,6 +98,7 @@ module Admin
     def target_params
       permitted = params.require(:target).permit(
         :name, :url, :active, :timeout,
+        endpoint_ids: [],
         custom_headers_keys: [],
         custom_headers_values: [],
         filters_attributes: %i[id filter_type field operator value group_key _destroy]
