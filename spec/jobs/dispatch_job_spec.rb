@@ -180,6 +180,59 @@ RSpec.describe DispatchJob do
     end
   end
 
+  describe "running enqueued jobs as a worker" do
+    include ActiveJob::TestHelper
+
+    context "when the target keeps answering with a server error" do
+      before do
+        stub_request(:post, target.url)
+          .to_return(status: 503, body: "Service Unavailable")
+      end
+
+      it "moves the delivery to the recurring job phase after the last attempt" do
+        described_class.perform_later(delivery.id)
+
+        expect {
+          perform_enqueued_jobs while enqueued_jobs.any?
+        }.to raise_error(DispatchJob::ServerError)
+
+        delivery.reload
+        expect(delivery.attempts).to eq(Delivery::ACTIVEJOB_MAX_ATTEMPTS)
+        expect(delivery.retry_stage).to eq("recurring_job_phase")
+        expect(a_request(:post, target.url)).to have_been_made.times(Delivery::ACTIVEJOB_MAX_ATTEMPTS)
+      end
+    end
+
+    context "when the target answers with a client error" do
+      before do
+        stub_request(:post, target.url)
+          .to_return(status: 404, body: "Not Found")
+      end
+
+      it "makes one request and does not retry" do
+        described_class.perform_later(delivery.id)
+        perform_enqueued_jobs while enqueued_jobs.any?
+
+        expect(a_request(:post, target.url)).to have_been_made.once
+        expect(enqueued_jobs).to be_empty
+        expect(delivery.reload.attempts).to eq(1)
+      end
+    end
+
+    context "when the delivery does not exist" do
+      it "does not retry" do
+        described_class.perform_later(-1)
+
+        expect {
+          perform_enqueued_jobs while enqueued_jobs.any?
+        }.not_to raise_error
+
+        expect(performed_jobs.size).to eq(1)
+        expect(enqueued_jobs).to be_empty
+      end
+    end
+  end
+
   describe "logging" do
     before do
       stub_request(:post, target.url)
