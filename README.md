@@ -77,6 +77,8 @@ rails server
 | `HOOKSHOT_USER` | `admin` | HTTP Basic Auth username for admin UI |
 | `HOOKSHOT_PASSWORD` | `changeme` | HTTP Basic Auth password for admin UI |
 | `RETENTION_DAYS` | `30` | Days to retain webhook data before cleanup |
+| `MAX_PAYLOAD_SIZE` | `1048576` | Maximum webhook body size in bytes; larger bodies are rejected with `413` |
+| `JOB_CONCURRENCY` | `1` | Number of Solid Queue worker processes for the `default` queue, which delivers webhooks |
 
 ### Background Jobs
 
@@ -116,7 +118,7 @@ Access the admin UI at `http://localhost:3000/admin/webhooks` with HTTP Basic Au
 Each target has:
 
 - **Name**: Identifier for the target
-- **URL**: Destination endpoint (must be HTTPS in production)
+- **URL**: Destination endpoint (an `http` or `https` URL)
 - **Timeout**: Request timeout in seconds (1-300)
 - **Active**: Toggle to enable/disable delivery
 - **Custom Headers**: Additional headers to send with each request
@@ -220,10 +222,14 @@ whitespace is stripped.
 
 Each delivery includes these headers:
 
-- `Content-Type`: Original webhook content type
+- `Content-Type`: Original webhook content type (`application/octet-stream` when the sender sent none)
 - `X-Hookshot-Webhook-Id`: Internal webhook ID
 - `X-Hookshot-Delivery-Id`: Internal delivery ID
+- `X-Hookshot-Attempt`: Delivery attempt number, starting at `1`
+- `User-Agent`: `Hookshot/1.0`
 - Any custom headers configured on the target
+
+Headers sent by the original sender (e.g. `X-GitHub-Event`) are not forwarded.
 
 ## Retry Behavior
 
