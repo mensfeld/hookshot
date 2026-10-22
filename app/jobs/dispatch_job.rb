@@ -13,14 +13,11 @@ class DispatchJob < ApplicationJob
 
   limits_concurrency to: 10, key: ->(_job) { "dispatch" }
 
-  discard_on ActiveRecord::RecordNotFound
-  discard_on ClientError
-
   retry_on StandardError, attempts: Delivery::ACTIVEJOB_MAX_ATTEMPTS, wait: lambda { |executions|
     Delivery::RETRY_SCHEDULE[executions - 1] || 30.seconds
-  } do |_job, exception|
+  } do |job, exception|
     # This block runs after all retry attempts are exhausted
-    delivery = Delivery.find(arguments.first)
+    delivery = Delivery.find(job.arguments.first)
 
     # Transition to recurring job phase if we've exhausted ActiveJob attempts
     if delivery.ready_for_recurring_phase?
@@ -31,6 +28,10 @@ class DispatchJob < ApplicationJob
     # Re-raise to let the job framework handle it
     raise exception
   end
+
+  # Declared after retry_on: the last declared matching handler wins
+  discard_on ActiveRecord::RecordNotFound
+  discard_on ClientError
 
   # Performs the webhook delivery.
   # @param delivery_id [Integer] ID of the delivery record to process

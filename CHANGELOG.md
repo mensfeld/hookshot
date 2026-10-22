@@ -8,6 +8,8 @@
 - [Enhancement] Unknown or inactive endpoints answer 404 and store nothing.
 - [Maintenance] Migration creates a `default` endpoint for the existing `/webhooks/receive` URL and attaches every existing target and webhook to it, so routing is unchanged after upgrading. Run `bin/rails db:migrate`.
 - [Change] Targets that are not attached to the receiving endpoint no longer get a delivery record at all (previously they got a `filtered` one when their filters rejected the webhook).
+- [Fix] A delivery that fails all 5 ActiveJob attempts moves to the recurring retry phase instead of raising `NameError` and stopping after 5 attempts.
+- [Fix] Client errors (4xx) and deleted deliveries are no longer retried.
 
 ## 1.4.0 (2026-10-09)
 - [Feature] Bulk retry on the Dispatches page: select retryable rows (with a select-all checkbox and shift-click range selection) and use "Retry selected".
