@@ -21,7 +21,7 @@ rails db:create db:migrate
 rails tailwindcss:build
 
 # Start the web server (port 3000) and the Tailwind CSS watcher;
-# background jobs run inside the web server
+# enqueued jobs run inside the web server, recurring tasks do not (see Background Jobs)
 ./bin/dev
 ```
 
@@ -79,8 +79,11 @@ rails server
 
 ### Background Jobs
 
-In development, jobs run inside the Rails server process (Active Job's default `async` adapter), so `./bin/dev` or
-`rails server` is enough.
+In development, enqueued jobs (e.g., webhook deliveries) run inside the Rails server process (Active Job's default
+`async` adapter), so `./bin/dev` or `rails server` runs them.
+
+The recurring tasks in `config/recurring.yml` (retries of failed deliveries every 5 minutes, and the daily cleanup of
+old webhooks) run only under Solid Queue, so they do not run in development.
 
 In production, jobs run on Solid Queue. Start it next to the web server:
 
