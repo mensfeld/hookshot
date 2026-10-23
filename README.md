@@ -20,12 +20,9 @@ npm install
 rails db:create db:migrate
 rails tailwindcss:build
 
-# Start everything (web + background jobs)
+# Start the web server (port 3000) and the Tailwind CSS watcher;
+# enqueued jobs run inside the web server, recurring tasks do not (see Background Jobs)
 ./bin/dev
-
-# Or start separately:
-# rails server          # Web server on port 3000
-# rails solid_queue:start  # Background job processor
 ```
 
 Then:
@@ -46,7 +43,7 @@ Then:
 
 ## Requirements
 
-- Ruby 3.4+
+- Ruby 4.0 (`.ruby-version` and CI use 4.0.7)
 - SQLite 3
 - Node.js (for Tailwind CSS compilation)
 
@@ -82,13 +79,20 @@ rails server
 
 ### Background Jobs
 
-Start Solid Queue to process webhook deliveries:
+In development, enqueued jobs (e.g., webhook deliveries) run inside the Rails server process (Active Job's default
+`async` adapter), so `./bin/dev` or `rails server` runs them.
+
+The recurring tasks in `config/recurring.yml` (retries of failed deliveries every 5 minutes, and the daily cleanup of
+old webhooks) run only under Solid Queue, so they do not run in development.
+
+In production, jobs run on Solid Queue. Start it next to the web server:
 
 ```bash
-rails solid_queue:start
+RAILS_ENV=production rails solid_queue:start
 ```
 
-Or run everything with Foreman/Overmind using the Procfile.
+Or set `SOLID_QUEUE_IN_PUMA=1` to run Solid Queue inside the Puma web server. The Docker image starts both with
+`bin/start`.
 
 ## Usage
 
