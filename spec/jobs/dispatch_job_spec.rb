@@ -217,7 +217,6 @@ RSpec.describe DispatchJob do
         delivery.transition_to_recurring_phase!
       end
 
-      # Runs RetryFailedDeliveriesJob once the delivery is due, then the jobs it queued, like a worker.
       def run_due_retry
         travel_to(delivery.reload.next_retry_at, with_usec: true)
         RetryFailedDeliveriesJob.perform_now
