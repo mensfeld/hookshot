@@ -1,7 +1,7 @@
 # Hookshot changelog
 
 ## 1.5.0 (Unreleased)
-- [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply.
+- [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply. The endpoint comes from the URL path only, never from the request body or query string.
 - [Feature] Admin pages to create, edit, deactivate and delete endpoints, showing each receive URL with a copy button, its targets and recent activity.
 - [Feature] The target form selects which endpoints a target receives from; new targets start on the default endpoint, and targets without endpoints are flagged.
 - [Enhancement] Webhooks record the endpoint that received them, can be filtered by it, and replay to that endpoint's current targets.
@@ -10,8 +10,6 @@
 - [Change] Targets that are not attached to the receiving endpoint no longer get a delivery record at all (previously they got a `filtered` one when their filters rejected the webhook).
 - [Fix] A delivery that fails all 5 ActiveJob attempts moves to the recurring retry phase instead of raising `NameError` and stopping after 5 attempts.
 - [Fix] Client errors (4xx) and deleted deliveries are no longer retried.
-- [Fix] The receive endpoint is taken from the URL path only, so malformed JSON bodies are stored and forwarded instead of failing with a parse error.
-- [Change] An `endpoint_slug` key in the request body or query string no longer selects the endpoint; use `/webhooks/receive/:slug`.
 
 ## 1.4.0 (2026-10-09)
 - [Feature] Bulk retry on the Dispatches page: select retryable rows (with a select-all checkbox and shift-click range selection) and use "Retry selected".
