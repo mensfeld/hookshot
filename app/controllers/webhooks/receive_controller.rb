@@ -42,11 +42,13 @@ module Webhooks
 
     private
 
-    # Finds the active endpoint addressed by the request: the slug from the URL, or the default endpoint for the
-    # plain /webhooks/receive URL.
+    # Finds the active endpoint addressed by the request: the slug from the URL path, or the default endpoint for
+    # the plain /webhooks/receive URL. Reads only the path parameters, so the body is never parsed and a body or
+    # query endpoint_slug cannot pick the endpoint.
     # @return [Endpoint, nil] the endpoint, or nil when it does not exist or is inactive
     def find_endpoint
-      endpoint = params[:endpoint_slug] ? Endpoint.find_by(slug: params[:endpoint_slug]) : Endpoint.default
+      slug = request.path_parameters[:endpoint_slug]
+      endpoint = slug ? Endpoint.find_by(slug: slug) : Endpoint.default
       endpoint if endpoint&.active?
     end
 

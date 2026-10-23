@@ -158,6 +158,20 @@ RSpec.describe "POST /webhooks/receive" do
       end
     end
 
+    context "with a malformed JSON body" do
+      let(:malformed_payload) { '{"broken": ' }
+
+      it "stores the body unchanged and answers 200" do
+        expect {
+          post "/webhooks/receive", params: malformed_payload, headers: { "CONTENT_TYPE" => "application/json" }
+        }.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        expect(Webhook.last.payload).to eq(malformed_payload)
+        expect(Webhook.last.content_type).to eq("application/json")
+      end
+    end
+
     context "with oversized payload" do
       before do
         stub_const("Webhooks::ReceiveController::MAX_PAYLOAD_SIZE", 100)
@@ -261,6 +275,53 @@ RSpec.describe "POST /webhooks/receive" do
       post "/webhooks/receive/deploys", params: payload, headers: json
 
       expect(Delivery.find_by(target: deploys_target)).to be_filtered
+    end
+
+    it "ignores an endpoint_slug key in the body of the plain URL" do
+      post "/webhooks/receive", params: { endpoint_slug: "deploys" }.to_json, headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(Endpoint.default)
+      expect(delivered_target_names).to eq([ "Legacy" ])
+    end
+
+    it "ignores an unknown endpoint_slug key in the body of the plain URL" do
+      expect { post "/webhooks/receive", params: { endpoint_slug: "nope" }.to_json, headers: json }
+        .to change(Webhook, :count).by(1)
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(Endpoint.default)
+    end
+
+    it "ignores an endpoint_slug form field on the plain URL" do
+      post "/webhooks/receive", params: { endpoint_slug: "deploys" }
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(Endpoint.default)
+    end
+
+    it "ignores an endpoint_slug query parameter on the plain URL" do
+      post "/webhooks/receive?endpoint_slug=deploys", params: payload, headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(Endpoint.default)
+      expect(delivered_target_names).to eq([ "Legacy" ])
+    end
+
+    it "takes the endpoint from the URL path over a body or query endpoint_slug" do
+      post "/webhooks/receive/deploys?endpoint_slug=issues", params: { endpoint_slug: "issues" }.to_json, headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.endpoint).to eq(deploys)
+      expect(delivered_target_names).to eq([ "Deploy bot" ])
+    end
+
+    it "stores and forwards a malformed JSON body on an endpoint URL" do
+      post "/webhooks/receive/deploys", params: '{"broken": ', headers: json
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.payload).to eq('{"broken": ')
+      expect(delivered_target_names).to eq([ "Deploy bot" ])
     end
 
     it "stores webhooks for an endpoint without targets without forwarding them" do
