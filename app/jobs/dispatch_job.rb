@@ -51,7 +51,11 @@ class DispatchJob < ApplicationJob
       raise ClientError, "Client error: #{result.status_code}"
     end
 
-    raise ServerError, result.error unless result.success?
+    return if result.success?
+    # RetryFailedDeliveriesJob makes the next attempt when next_retry_at is due; retry_on would restart its own count
+    return if delivery.recurring_job_phase?
+
+    raise ServerError, result.error
   end
 
   private
