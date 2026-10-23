@@ -19,7 +19,7 @@
   "devDependencies": {
     "@herb-tools/linter": "^0.11.0",
     "@hotwired/stimulus": "3.2.2",
-    "jsdom": "30.1.2",
+    "jsdom": "30.1.3",
     "lostconf": "0.4.0"
   }
 }
