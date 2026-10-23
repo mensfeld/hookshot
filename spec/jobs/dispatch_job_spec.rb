@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe DispatchJob do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:webhook) { create(:webhook, payload: '{"test": true}') }
   let(:target) { create(:target, url: "https://api.example.com/webhook") }
   let(:delivery) { create(:delivery, webhook: webhook, target: target, status: :pending) }
@@ -200,6 +202,77 @@ RSpec.describe DispatchJob do
         expect(delivery.attempts).to eq(Delivery::ACTIVEJOB_MAX_ATTEMPTS)
         expect(delivery.retry_stage).to eq("recurring_job_phase")
         expect(a_request(:post, target.url)).to have_been_made.times(Delivery::ACTIVEJOB_MAX_ATTEMPTS)
+      end
+    end
+
+    context "when a delivery in the recurring job phase keeps getting a server error" do
+      let(:delivery) do
+        create(:delivery, webhook: webhook, target: target, status: :failed, attempts: 5, retry_stage: :activejob_phase)
+      end
+
+      before do
+        stub_request(:post, target.url)
+          .to_return(status: 503, body: "Service Unavailable")
+
+        delivery.transition_to_recurring_phase!
+      end
+
+      # Runs RetryFailedDeliveriesJob once the delivery is due, then the jobs it queued, like a worker.
+      def run_due_retry
+        travel_to(delivery.reload.next_retry_at, with_usec: true)
+        RetryFailedDeliveriesJob.perform_now
+        perform_enqueued_jobs while enqueued_jobs.any?
+      end
+
+      it "makes one request per due retry, 1h, 2h, 4h, 8h and 24h apart" do
+        previous_attempt_at = Time.current
+
+        [ 1.hour, 2.hours, 4.hours, 8.hours, 24.hours ].each.with_index(6) do |delay, attempt|
+          RetryFailedDeliveriesJob.perform_now
+          expect(enqueued_jobs).to be_empty
+
+          run_due_retry
+
+          delivery.reload
+          expect(delivery.attempts).to eq(attempt)
+          expect(delivery.status).to eq("failed")
+          expect(delivery.last_retry_at - previous_attempt_at).to be_within(1.second).of(delay)
+          expect(a_request(:post, target.url)).to have_been_made.times(attempt - Delivery::ACTIVEJOB_MAX_ATTEMPTS)
+
+          previous_attempt_at = delivery.last_retry_at
+        end
+      end
+
+      it "gives up after attempt 10" do
+        5.times { run_due_retry }
+
+        travel 2.days
+        RetryFailedDeliveriesJob.perform_now
+
+        delivery.reload
+        expect(enqueued_jobs).to be_empty
+        expect(delivery.attempts).to eq(Delivery::MAX_TOTAL_ATTEMPTS)
+        expect(delivery.status).to eq("failed")
+        expect(delivery).not_to be_retryable
+        expect(Delivery.ready_for_retry).not_to include(delivery)
+        expect(a_request(:post, target.url)).to have_been_made.times(5)
+      end
+
+      it "stops retrying after a success" do
+        run_due_retry
+
+        stub_request(:post, target.url)
+          .to_return(status: 200, body: "ok")
+        run_due_retry
+
+        travel 2.days
+        RetryFailedDeliveriesJob.perform_now
+
+        delivery.reload
+        expect(enqueued_jobs).to be_empty
+        expect(delivery.status).to eq("success")
+        expect(delivery.attempts).to eq(7)
+        expect(a_request(:post, target.url)).to have_been_made.twice
       end
     end
 

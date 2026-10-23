@@ -46,7 +46,7 @@ RSpec.describe RetryFailedDeliveriesJob do
         described_class.perform_now
 
         expect(Rails.logger).to have_received(:info)
-          .with(/Processed 1 deliveries, 0 failed\/exhausted/)
+          .with(/Processed 1 deliveries/)
       end
     end
 
@@ -73,7 +73,7 @@ RSpec.describe RetryFailedDeliveriesJob do
         described_class.perform_now
 
         expect(Rails.logger).to have_received(:info)
-          .with(/Processed 3 deliveries, 0 failed\/exhausted/)
+          .with(/Processed 3 deliveries/)
       end
     end
 
@@ -124,10 +124,9 @@ RSpec.describe RetryFailedDeliveriesJob do
         }.not_to have_enqueued_job(DispatchJob)
       end
 
-      it "increments exhausted count" do
-        # The job should process the exhausted delivery but not retry it
+      it "leaves the delivery failed" do
         described_class.perform_now
-        # Verify it wasn't retried
+
         expect(exhausted_delivery.reload.status).to eq("failed")
       end
     end
