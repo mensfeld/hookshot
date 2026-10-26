@@ -189,6 +189,18 @@ RSpec.describe "POST /webhooks/receive" do
           expect(Webhook.last.content_type).to eq(content_type)
         end
       end
+
+      it "stores the body unchanged and answers 200 for a malformed query string" do
+        expect {
+          post "/webhooks/receive",
+            params: "a=1",
+            headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" },
+            env: { "QUERY_STRING" => "a=%zz" }
+        }.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        expect(Webhook.last.payload).to eq("a=1")
+      end
     end
 
     context "with oversized payload" do
