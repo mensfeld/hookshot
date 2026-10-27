@@ -172,6 +172,37 @@ RSpec.describe "POST /webhooks/receive" do
       end
     end
 
+    context "with a malformed form or multipart body" do
+      {
+        "an invalid percent-escape" => [ "a=%zz", "application/x-www-form-urlencoded" ],
+        "an invalid UTF-8 percent-escape" => [ "a=%FF", "application/x-www-form-urlencoded" ],
+        "parameters nested too deep" => [ "a#{"[b]" * 101}=1", "application/x-www-form-urlencoded" ],
+        "a broken multipart boundary" => [ "--xyz\r\nbroken", "multipart/form-data; boundary=xyz" ]
+      }.each do |kind, (body, content_type)|
+        it "stores the body unchanged and answers 200 for #{kind}" do
+          expect {
+            post "/webhooks/receive", params: body, headers: { "CONTENT_TYPE" => content_type }
+          }.to change(Webhook, :count).by(1)
+
+          expect(response).to have_http_status(:ok)
+          expect(Webhook.last.payload).to eq(body)
+          expect(Webhook.last.content_type).to eq(content_type)
+        end
+      end
+
+      it "stores the body unchanged and answers 200 for a malformed query string" do
+        expect {
+          post "/webhooks/receive",
+            params: "a=1",
+            headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" },
+            env: { "QUERY_STRING" => "a=%zz" }
+        }.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        expect(Webhook.last.payload).to eq("a=1")
+      end
+    end
+
     context "with oversized payload" do
       before do
         stub_const("Webhooks::ReceiveController::MAX_PAYLOAD_SIZE", 100)
@@ -321,6 +352,15 @@ RSpec.describe "POST /webhooks/receive" do
 
       expect(response).to have_http_status(:ok)
       expect(Webhook.last.payload).to eq('{"broken": ')
+      expect(delivered_target_names).to eq([ "Deploy bot" ])
+    end
+
+    it "stores and forwards a malformed form body on an endpoint URL" do
+      post "/webhooks/receive/deploys", params: "a=%zz", headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" }
+
+      expect(response).to have_http_status(:ok)
+      expect(Webhook.last.payload).to eq("a=%zz")
+      expect(Webhook.last.endpoint).to eq(deploys)
       expect(delivered_target_names).to eq([ "Deploy bot" ])
     end
 
