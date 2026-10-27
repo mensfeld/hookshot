@@ -115,7 +115,8 @@ Access the admin UI at `http://localhost:3000/admin/webhooks` with HTTP Basic Au
   that match the current filters at once
 - **Endpoints**: Configure the inbound URLs and which targets each one forwards to
 - **Targets**: Configure destination URLs with filters
-- **Jobs**: Solid Queue dashboard at `/jobs`
+- **Jobs**: Mission Control jobs dashboard at `/jobs`; it shows Solid Queue's queues and jobs in production, and no
+  queues or jobs in development (`async` adapter)
 
 ### Configuring Targets
 
@@ -220,7 +221,7 @@ whitespace is stripped.
 | POST | `/webhooks/receive/:slug` | None | Receive incoming webhooks on a named endpoint |
 | GET | `/health` | None | Health check endpoint |
 | GET | `/admin/*` | Basic | Admin dashboard |
-| GET | `/jobs` | Basic | Solid Queue dashboard |
+| GET | `/jobs` | Basic | Mission Control jobs dashboard |
 
 ## Delivery Headers
 
