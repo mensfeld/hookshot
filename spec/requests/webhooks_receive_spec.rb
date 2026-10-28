@@ -145,7 +145,8 @@ RSpec.describe "POST /webhooks/receive" do
 
     context "with a body that is not valid UTF-8" do
       let!(:target) { create(:target, url: "https://target.example.com/hook") }
-      let!(:target_stub) { stub_request(:post, target.url).to_return(status: 200) }
+
+      before { stub_request(:post, target.url).to_return(status: 200) }
 
       {
         "a gzip body" => [ "application/octet-stream", Zlib.gzip("hello hookshot") ],
@@ -158,7 +159,7 @@ RSpec.describe "POST /webhooks/receive" do
 
           expect(response).to have_http_status(:ok)
           expect(Webhook.last.reload.payload.b).to eq(body)
-          expect(target_stub.with { |request| request.body.b == body }).to have_been_requested.once
+          expect(WebMock).to have_requested(:post, target.url).with { |req| req.body.b == body }.once
         end
       end
 
@@ -171,7 +172,7 @@ RSpec.describe "POST /webhooks/receive" do
         end
 
         expect(response).to have_http_status(:ok)
-        expect(target_stub.with { |request| request.body.b == body }).to have_been_requested.once
+        expect(WebMock).to have_requested(:post, target.url).with { |req| req.body.b == body }.once
       end
     end
 

@@ -29,7 +29,6 @@ class Webhook < ApplicationRecord
   end
 
   # Returns the payload as valid UTF-8 for display, with invalid bytes replaced by U+FFFD.
-  # The stored payload stays raw bytes; only this copy is scrubbed.
   # @return [String] a valid UTF-8 copy of the payload ("" when nil)
   def display_payload
     utf8 = payload.to_s.dup.force_encoding(Encoding::UTF_8)
