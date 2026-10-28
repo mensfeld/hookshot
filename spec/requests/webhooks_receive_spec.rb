@@ -161,6 +161,18 @@ RSpec.describe "POST /webhooks/receive" do
           expect(target_stub.with { |request| request.body.b == body }).to have_been_requested.once
         end
       end
+
+      it "relays a JSON body with invalid bytes through a payload filter" do
+        body = %({"event":"caf\xE9"}).b
+        create(:filter, target: target, filter_type: :payload, field: "$.event", operator: :regex, value: "caf")
+
+        perform_enqueued_jobs do
+          post "/webhooks/receive", params: body, headers: { "CONTENT_TYPE" => "text/plain" }
+        end
+
+        expect(response).to have_http_status(:ok)
+        expect(target_stub.with { |request| request.body.b == body }).to have_been_requested.once
+      end
     end
 
     context "with invalid UTF-8 byte sequences in a header value" do

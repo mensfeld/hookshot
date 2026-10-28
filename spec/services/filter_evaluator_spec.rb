@@ -149,6 +149,35 @@ RSpec.describe FilterEvaluator do
       end
     end
 
+    context "with a JSON payload that is not valid UTF-8" do
+      let(:webhook) { create(:webhook, payload: %({"event":"caf\xE9"}).b) }
+      let(:evaluator) { described_class.new(webhook, target) }
+
+      it "matches exists against the value with invalid bytes replaced" do
+        create(:filter, :payload_exists, target: target, field: "$.event")
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches equals against the value with invalid bytes replaced" do
+        create(:filter, :payload_equals, target: target, field: "$.event", value: "caf\uFFFD")
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches matches against the value with invalid bytes replaced" do
+        create(:filter, :payload_matches, target: target, field: "$.event", value: "caf*")
+
+        expect(evaluator.passes?).to be true
+      end
+
+      it "matches regex against the value with invalid bytes replaced" do
+        create(:filter, target: target, filter_type: :payload, field: "$.event", operator: :regex, value: "\\Acaf")
+
+        expect(evaluator.passes?).to be true
+      end
+    end
+
     context "with empty payload" do
       let(:webhook) { create(:webhook, payload: nil) }
 
