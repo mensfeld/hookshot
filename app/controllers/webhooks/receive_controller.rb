@@ -27,7 +27,7 @@ module Webhooks
       webhook = Webhook.create!(
         endpoint: endpoint,
         headers: extract_headers,
-        payload: to_utf8(request.raw_post),
+        payload: request.raw_post.b,
         content_type: request.content_type || "application/octet-stream",
         source_ip: request.remote_ip,
         received_at: Time.current

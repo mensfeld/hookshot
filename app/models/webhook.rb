@@ -28,6 +28,19 @@ class Webhook < ApplicationRecord
     payload&.bytesize || 0
   end
 
+  # Returns the payload as valid UTF-8 for display, with invalid bytes replaced by U+FFFD.
+  # The stored payload stays raw bytes; only this copy is scrubbed.
+  # @return [String] a valid UTF-8 copy of the payload ("" when nil)
+  def display_payload
+    payload.to_s.dup.force_encoding(Encoding::UTF_8).scrub
+  end
+
+  # Tells whether the stored payload is valid UTF-8 text.
+  # @return [Boolean] true when display_payload shows the body unchanged
+  def utf8_payload?
+    payload.to_s.dup.force_encoding(Encoding::UTF_8).valid_encoding?
+  end
+
   # Returns dispatch statistics for this webhook.
   # @return [Hash] hash containing :success and :total delivery counts
   def dispatch_stats
