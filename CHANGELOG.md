@@ -9,7 +9,7 @@
 - [Maintenance] Migration creates a `default` endpoint for the existing `/webhooks/receive` URL and attaches every existing target and webhook to it, so routing is unchanged after upgrading. Run `bin/rails db:migrate`.
 - [Change] Targets that are not attached to the receiving endpoint no longer get a delivery record at all (previously they got a `filtered` one when their filters rejected the webhook).
 - [Fix] A delivery that fails all 5 ActiveJob attempts moves to the recurring retry phase instead of raising `NameError` and stopping after 5 attempts; it is then retried 1 h, 2 h, 4 h, 8 h and 24 h apart, one attempt each, and given up after attempt 10.
-- [Fix] Client errors (4xx) and deleted deliveries are no longer retried.
+- [Fix] Client errors (4xx) and deleted deliveries are no longer retried, in the ActiveJob or the recurring retry phase.
 - [Fix] Webhooks with a malformed form or multipart body (bad percent-escapes, too deeply nested parameters, a broken multipart boundary) or a malformed query string on the receive URL are stored unchanged and answered 200 instead of being rejected with 400.
 
 ## 1.4.0 (2026-10-09)

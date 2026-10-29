@@ -47,7 +47,7 @@ class DispatchJob < ApplicationJob
     update_delivery(delivery, result)
 
     # Don't retry on client errors (4xx)
-    if result.status_code&.between?(400, 499)
+    if client_error?(result)
       raise ClientError, "Client error: #{result.status_code}"
     end
 
@@ -95,6 +95,9 @@ class DispatchJob < ApplicationJob
   # @param result [HttpClient::Result] the HTTP response result
   # @return [void]
   def update_delivery(delivery, result)
+    # Without a next_retry_at, RetryFailedDeliveriesJob does not pick up a delivery in the recurring job phase
+    delivery.next_retry_at = nil if client_error?(result)
+
     delivery.update!(
       status: result.success? ? :success : :failed,
       status_code: result.status_code,
@@ -102,5 +105,12 @@ class DispatchJob < ApplicationJob
       error_message: result.error,
       dispatched_at: Time.current
     )
+  end
+
+  # Checks whether the response is a client error.
+  # @param result [HttpClient::Result] the HTTP response result
+  # @return [Boolean] true for a client error (4xx) response
+  def client_error?(result)
+    result.status_code&.between?(400, 499) || false
   end
 end

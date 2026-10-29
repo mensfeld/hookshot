@@ -288,6 +288,67 @@ RSpec.describe DispatchJob do
         expect(a_request(:post, target.url)).to have_been_made.once
         expect(enqueued_jobs).to be_empty
         expect(delivery.reload.attempts).to eq(1)
+        expect(delivery.next_retry_at).to be_nil
+      end
+    end
+
+    context "when a delivery in the recurring job phase times out" do
+      let(:delivery) do
+        create(:delivery, webhook: webhook, target: target, status: :failed, attempts: 5, retry_stage: :activejob_phase)
+      end
+
+      before do
+        stub_request(:post, target.url).to_timeout
+
+        delivery.transition_to_recurring_phase!
+      end
+
+      it "keeps the delivery on the schedule" do
+        2.times do
+          travel_to(delivery.reload.next_retry_at, with_usec: true)
+          RetryFailedDeliveriesJob.perform_now
+          perform_enqueued_jobs while enqueued_jobs.any?
+        end
+
+        delivery.reload
+        expect(a_request(:post, target.url)).to have_been_made.twice
+        expect(delivery.attempts).to eq(7)
+        expect(delivery.status_code).to be_nil
+        expect(delivery.next_retry_at).to be_present
+        expect(Delivery.ready_for_retry).not_to include(delivery)
+      end
+    end
+
+    context "when a delivery in the recurring job phase gets a client error" do
+      let(:delivery) do
+        create(:delivery, webhook: webhook, target: target, status: :failed, attempts: 5, retry_stage: :activejob_phase)
+      end
+
+      before do
+        stub_request(:post, target.url)
+          .to_return(status: 404, body: "Not Found")
+
+        delivery.transition_to_recurring_phase!
+      end
+
+      it "makes one request and is not retried by later due runs" do
+        travel_to(delivery.reload.next_retry_at, with_usec: true)
+        RetryFailedDeliveriesJob.perform_now
+        perform_enqueued_jobs while enqueued_jobs.any?
+
+        [ 2.hours, 4.hours, 8.hours, 24.hours, 2.days ].each do |delay|
+          travel delay
+          RetryFailedDeliveriesJob.perform_now
+          expect(enqueued_jobs).to be_empty
+        end
+
+        delivery.reload
+        expect(a_request(:post, target.url)).to have_been_made.once
+        expect(delivery.attempts).to eq(6)
+        expect(delivery.status).to eq("failed")
+        expect(delivery.status_code).to eq(404)
+        expect(delivery.next_retry_at).to be_nil
+        expect(Delivery.ready_for_retry).not_to include(delivery)
       end
     end
 
