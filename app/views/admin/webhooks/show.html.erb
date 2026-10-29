@@ -63,7 +63,8 @@
         <div class="flex justify-between items-center mb-2">
           <h3 class="font-medium">Body</h3>
         </div>
-        <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all max-h-96"><% if @webhook.content_type&.include?('json') && @webhook.payload.present? %><%= begin; JSON.pretty_generate(JSON.parse(@webhook.payload)); rescue; @webhook.payload; end %><% else %><%= @webhook.payload.presence || "(empty)" %><% end %></pre>
+        <pre class="text-xs overflow-x-auto bg-base-200 p-3 rounded-box whitespace-pre-wrap break-all max-h-96"><% if @webhook.content_type&.include?('json') && @webhook.payload.present? %><%= begin; JSON.pretty_generate(JSON.parse(@webhook.display_payload)); rescue; @webhook.display_payload; end %><% else %><%= @webhook.display_payload.presence || "(empty)" %><% end %></pre>
+        <% unless @webhook.utf8_payload? %><p class="text-xs text-base-content/60 mt-1">Not valid UTF-8: shown with invalid bytes replaced. Targets get the original <%= @webhook.payload_size %> bytes.</p><% end %>
       </div>
     </div>
   </div>

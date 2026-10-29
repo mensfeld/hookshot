@@ -112,10 +112,11 @@ class FilterEvaluator
     false
   end
 
-  # Parses the webhook payload as JSON.
+  # Parses the webhook payload as JSON. Uses the scrubbed UTF-8 copy, so string values with invalid bytes do not
+  # raise in the operators.
   # @return [Hash, nil] parsed JSON or nil if parsing fails
   def parse_json
-    JSON.parse(@webhook.payload)
+    JSON.parse(@webhook.display_payload)
   rescue JSON::ParserError
     nil
   end

@@ -65,6 +65,32 @@ RSpec.describe Webhook do
     end
   end
 
+  describe "payload column" do
+    it "stores raw bytes" do
+      expect(described_class.columns_hash["payload"].type).to eq(:binary)
+    end
+  end
+
+  describe "#display_payload" do
+    it "returns a UTF-8 body unchanged" do
+      webhook = build(:webhook, payload: "x — y".b)
+
+      expect(webhook.display_payload).to eq("x — y")
+      expect(webhook).to be_utf8_payload
+    end
+
+    it "replaces invalid bytes in a body that is not valid UTF-8" do
+      webhook = build(:webhook, payload: "caf\xE9".b)
+
+      expect(webhook.display_payload).to eq("caf\uFFFD")
+      expect(webhook).not_to be_utf8_payload
+    end
+
+    it "returns an empty string without payload" do
+      expect(build(:webhook, :without_payload).display_payload).to eq("")
+    end
+  end
+
   describe "#dispatch_stats" do
     let(:webhook) { create(:webhook) }
     let(:target) { create(:target) }

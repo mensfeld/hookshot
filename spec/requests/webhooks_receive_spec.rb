@@ -118,7 +118,7 @@ RSpec.describe "POST /webhooks/receive" do
       it "preserves the multi-byte characters" do
         post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
 
-        expect(Webhook.last.payload).to include("—")
+        expect(Webhook.last.display_payload).to include("—")
       end
     end
 
@@ -135,11 +135,44 @@ RSpec.describe "POST /webhooks/receive" do
         }.not_to raise_error
       end
 
-      it "stores the payload with invalid bytes scrubbed" do
+      it "stores the payload bytes unchanged" do
         post "/webhooks/receive", params: invalid_payload, headers: { "CONTENT_TYPE" => "application/octet-stream" }
 
         expect(response).to have_http_status(:ok)
-        expect(Webhook.last.payload).to be_valid_encoding
+        expect(Webhook.last.payload.b).to eq(invalid_payload)
+      end
+    end
+
+    context "with a body that is not valid UTF-8" do
+      let!(:target) { create(:target, url: "https://target.example.com/hook") }
+
+      before { stub_request(:post, target.url).to_return(status: 200) }
+
+      {
+        "a gzip body" => [ "application/octet-stream", Zlib.gzip("hello hookshot") ],
+        "a Latin-1 body" => [ "text/plain; charset=iso-8859-1", "caf\xE9".b ]
+      }.each do |name, (content_type, body)|
+        it "stores and relays #{name} byte for byte" do
+          perform_enqueued_jobs do
+            post "/webhooks/receive", params: body, headers: { "CONTENT_TYPE" => content_type }
+          end
+
+          expect(response).to have_http_status(:ok)
+          expect(Webhook.last.reload.payload.b).to eq(body)
+          expect(WebMock).to have_requested(:post, target.url).with { |req| req.body.b == body }.once
+        end
+      end
+
+      it "relays a JSON body with invalid bytes through a payload filter" do
+        body = %({"event":"caf\xE9"}).b
+        create(:filter, target: target, filter_type: :payload, field: "$.event", operator: :regex, value: "caf")
+
+        perform_enqueued_jobs do
+          post "/webhooks/receive", params: body, headers: { "CONTENT_TYPE" => "text/plain" }
+        end
+
+        expect(response).to have_http_status(:ok)
+        expect(WebMock).to have_requested(:post, target.url).with { |req| req.body.b == body }.once
       end
     end
 

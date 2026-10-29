@@ -149,6 +149,38 @@ RSpec.describe "Admin Webhooks" do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(webhook.source_ip)
     end
+
+    it "shows a body that is not valid UTF-8 with invalid bytes replaced and a note" do
+      webhook = create(:webhook, content_type: "application/octet-stream", payload: "caf\xE9".b)
+
+      get "/admin/webhooks/#{webhook.id}", headers: auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body.dup.force_encoding(Encoding::UTF_8)).to be_valid_encoding
+      expect(response.body).to include("caf\uFFFD")
+      expect(response.body).to include("Not valid UTF-8: shown with invalid bytes replaced. Targets get the original 4 bytes.")
+    end
+
+    it "shows a JSON body that is not valid UTF-8 with invalid bytes replaced and a note" do
+      webhook = create(:webhook, content_type: "application/json", payload: %({"m":"caf\xE9"}).b)
+
+      get "/admin/webhooks/#{webhook.id}", headers: auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body.dup.force_encoding(Encoding::UTF_8)).to be_valid_encoding
+      expect(response.body).to include(ERB::Util.html_escape(JSON.pretty_generate("m" => "caf\uFFFD")))
+      expect(response.body).to include("Not valid UTF-8: shown with invalid bytes replaced. Targets get the original 12 bytes.")
+    end
+
+    it "pretty-prints a UTF-8 JSON body without the note" do
+      webhook = create(:webhook, content_type: "application/json", payload: %({"m":"x — y"}).b)
+
+      get "/admin/webhooks/#{webhook.id}", headers: auth_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(ERB::Util.html_escape(JSON.pretty_generate("m" => "x — y")))
+      expect(response.body).not_to include("Not valid UTF-8")
+    end
   end
 
   describe "DELETE /admin/webhooks/:id" do

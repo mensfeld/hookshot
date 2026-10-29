@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -98,7 +98,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
     t.string "content_type", null: false
     t.datetime "created_at", null: false
     t.json "headers", default: {}, null: false
-    t.text "payload"
+    t.binary "payload"
     t.datetime "received_at", null: false
     t.string "source_ip", null: false
     t.datetime "updated_at", null: false
