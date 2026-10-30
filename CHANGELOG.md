@@ -4,6 +4,7 @@
 - [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply. The endpoint comes from the URL path only, never from the request body or query string.
 - [Feature] Admin pages to create, edit, deactivate and delete endpoints, showing each receive URL with a copy button, its targets and recent activity.
 - [Feature] The target form selects which endpoints a target receives from; new targets start on the default endpoint, and targets without endpoints are flagged.
+- [Feature] MCP server at `/mcp` (Streamable HTTP, behind the admin HTTP Basic Auth) with tools to list endpoints, targets, webhooks and dispatches, show a webhook, activate or deactivate a target, replay a webhook and retry a dispatch.
 - [Enhancement] Webhooks record the endpoint that received them, can be filtered by it, and replay to that endpoint's current targets.
 - [Enhancement] Unknown or inactive endpoints answer 404 and store nothing.
 - [Maintenance] Migration creates a `default` endpoint for the existing `/webhooks/receive` URL and attaches every existing target and webhook to it, so routing is unchanged after upgrading. Run `bin/rails db:migrate`.

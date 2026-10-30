@@ -12,6 +12,10 @@ Rails.application.routes.draw do
   # Job queue dashboard (with HTTP Basic Auth)
   mount MissionControl::Jobs::Engine, at: "/jobs"
 
+  # MCP server for admin tools (HTTP Basic Auth)
+  post "/mcp", to: "mcp#create"
+  get "/mcp", to: "mcp#stream"
+
   # Admin routes (HTTP Basic Auth)
   namespace :admin do
     resources :webhooks, only: %i[index show destroy] do
