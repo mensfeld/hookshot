@@ -123,10 +123,13 @@ module Mcp
     # @param _arguments [Hash] unused
     # @return [Array<Hash>] every target, without its custom headers
     def list_targets(_arguments)
-      Target.includes(:endpoints).order(:name).map do |target|
+      targets = Target.includes(:endpoints).order(:name).to_a
+      success_rates = Target.success_rates_24h(targets.map(&:id))
+
+      targets.map do |target|
         target.slice(:id, :name, :url, :active, :timeout).merge(
           endpoint_slugs: target.endpoints.map(&:slug),
-          success_rate_24h: target.success_rate_24h
+          success_rate_24h: success_rates.fetch(target.id)
         )
       end
     end
@@ -144,12 +147,15 @@ module Mcp
     # @param arguments [Hash] optional +endpoint_id+, +query+ and +limit+
     # @return [Array<Hash>] matching webhooks
     def list_webhooks(arguments)
-      Webhook.includes(:endpoint)
+      webhooks = Webhook.includes(:endpoint)
         .for_endpoint(arguments["endpoint_id"])
         .search_text(arguments["query"])
         .order(received_at: :desc)
         .limit(limit(arguments))
-        .map { |webhook| webhook_summary(webhook) }
+        .to_a
+      stats = Webhook.dispatch_stats_for(webhooks.map(&:id))
+
+      webhooks.map { |webhook| webhook_summary(webhook, stats.fetch(webhook.id)) }
     end
 
     # @param arguments [Hash] +id+
@@ -158,7 +164,7 @@ module Mcp
       webhook = Webhook.find(integer(arguments, "id"))
       payload = webhook.display_payload
 
-      webhook_summary(webhook).merge(
+      webhook_summary(webhook, webhook.dispatch_stats).merge(
         headers: webhook.headers,
         payload: payload.byteslice(0, PAYLOAD_PREVIEW_BYTES).scrub(""),
         payload_truncated: payload.bytesize > PAYLOAD_PREVIEW_BYTES,
@@ -199,11 +205,12 @@ module Mcp
     end
 
     # @param webhook [Webhook] the webhook to summarize
+    # @param dispatch_stats [Hash] the webhook's delivery counts, from Webhook.dispatch_stats_for
     # @return [Hash] the webhook's listing fields
-    def webhook_summary(webhook)
+    def webhook_summary(webhook, dispatch_stats)
       webhook.slice(:id, :content_type, :source_ip, :received_at, :payload_size).merge(
         endpoint_slug: webhook.endpoint&.slug,
-        dispatch_stats: webhook.dispatch_stats
+        dispatch_stats: dispatch_stats
       )
     end
 

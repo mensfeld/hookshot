@@ -44,8 +44,17 @@ class Webhook < ApplicationRecord
   # Returns dispatch statistics for this webhook.
   # @return [Hash] hash containing :success and :total delivery counts
   def dispatch_stats
-    total = deliveries.count
-    success = deliveries.success.count
-    { success: success, total: total }
+    self.class.dispatch_stats_for([ id ]).fetch(id)
+  end
+
+  # Returns dispatch statistics for many webhooks with one query.
+  # @param ids [Array<Integer>] ids of the webhooks to count deliveries for
+  # @return [Hash{Integer => Hash}] webhook id mapped to its :success and :total delivery counts
+  def self.dispatch_stats_for(ids)
+    counts = Delivery.where(webhook_id: ids).group(:webhook_id, :status).count
+    totals = Hash.new(0)
+    counts.each { |(webhook_id, _status), count| totals[webhook_id] += count }
+
+    ids.index_with { |id| { success: counts.fetch([ id, "success" ], 0), total: totals[id] } }
   end
 end

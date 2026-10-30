@@ -69,6 +69,26 @@ RSpec.describe Target do
     end
   end
 
+  describe ".success_rates_24h" do
+    it "calculates the rate of every target with one query" do
+      webhook = create(:webhook)
+      busy = create(:target)
+      idle = create(:target)
+      create(:delivery, :success, target: busy, webhook: webhook)
+      create(:delivery, :failed, target: busy, webhook: webhook)
+      create(:delivery, :success, target: busy, webhook: webhook, created_at: 2.days.ago)
+      queries = 0
+      counter = ->(*) { queries += 1 }
+
+      rates = ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        described_class.success_rates_24h([ busy.id, idle.id ])
+      end
+
+      expect(rates).to eq(busy.id => 50.0, idle.id => 0)
+      expect(queries).to eq(1)
+    end
+  end
+
   describe "#filter_count" do
     let(:target) { create(:target) }
 
