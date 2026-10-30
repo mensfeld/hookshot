@@ -24,11 +24,20 @@ class Target < ApplicationRecord
   # Calculates the success rate for deliveries in the last 24 hours.
   # @return [Float] percentage of successful deliveries (0-100)
   def success_rate_24h
-    recent = deliveries.recent_24h
-    total = recent.count
-    return 0 if total.zero?
+    self.class.success_rates_24h([ id ]).fetch(id)
+  end
 
-    (recent.success.count.to_f / total * 100).round(1)
+  # Calculates the 24 hour success rate of many targets with one query.
+  # @param ids [Array<Integer>] ids of the targets to calculate the rate for
+  # @return [Hash{Integer => Numeric}] target id mapped to its percentage of successful deliveries (0-100)
+  def self.success_rates_24h(ids)
+    counts = Delivery.recent_24h.where(target_id: ids).group(:target_id, :status).count
+    totals = Hash.new(0)
+    counts.each { |(target_id, _status), count| totals[target_id] += count }
+
+    ids.index_with do |id|
+      totals[id].zero? ? 0 : (counts.fetch([ id, "success" ], 0).to_f / totals[id] * 100).round(1)
+    end
   end
 
   # Groups filters by their group key. Within a group all filters must match; across groups any group may match.

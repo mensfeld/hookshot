@@ -106,4 +106,23 @@ RSpec.describe Webhook do
       expect(stats[:total]).to eq(2)
     end
   end
+
+  describe ".dispatch_stats_for" do
+    it "counts the deliveries of every webhook with one query" do
+      target = create(:target)
+      busy = create(:webhook)
+      idle = create(:webhook)
+      create(:delivery, :success, webhook: busy, target: target)
+      create(:delivery, :failed, webhook: busy, target: target)
+      queries = 0
+      counter = ->(*) { queries += 1 }
+
+      stats = ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        described_class.dispatch_stats_for([ busy.id, idle.id ])
+      end
+
+      expect(stats).to eq(busy.id => { success: 1, total: 2 }, idle.id => { success: 0, total: 0 })
+      expect(queries).to eq(1)
+    end
+  end
 end

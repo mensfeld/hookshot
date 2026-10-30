@@ -38,6 +38,7 @@ Then:
 - **Filtering**: Route webhooks to specific targets based on header or payload content
 - **Background Processing**: Reliable delivery with Solid Queue, including retries with exponential backoff
 - **Admin Dashboard**: View webhooks, dispatches, and manage targets with a clean DaisyUI interface
+- **MCP Server**: Run admin actions from an MCP client (e.g. Claude Code) at `/mcp`
 - **Replay**: Re-dispatch any webhook to the active targets of the endpoint that received it
 - **Health Check**: `/health` endpoint for monitoring
 
@@ -117,6 +118,34 @@ Access the admin UI at `http://localhost:3000/admin/webhooks` with HTTP Basic Au
 - **Targets**: Configure destination URLs with filters
 - **Jobs**: Mission Control jobs dashboard at `/jobs`; it shows Solid Queue's queues and jobs in production, and no
   queues or jobs in development (`async` adapter)
+
+### MCP Server
+
+Hookshot is an [MCP](https://modelcontextprotocol.io) server at `/mcp` (Streamable HTTP transport, stateless, no
+streaming), so an AI assistant can run admin actions. It uses the same HTTP Basic Auth as the admin UI
+(`HOOKSHOT_USER` / `HOOKSHOT_PASSWORD`); there is nothing else to configure.
+
+Connect Claude Code:
+
+```bash
+claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
+  --header "Authorization: Basic $(printf '%s' 'admin:changeme' | base64)"
+```
+
+| Tool | What it does |
+|------|--------------|
+| `list_endpoints` | List endpoints with their attached target ids |
+| `list_targets` | List targets with their endpoints and 24h success rate (custom headers are not shown) |
+| `set_target_active` | Activate or deactivate a target |
+| `list_webhooks` | List webhooks, newest first, by endpoint and search text |
+| `get_webhook` | Show a webhook with headers, payload (first 10 KB) and deliveries |
+| `replay_webhook` | Replay a webhook to the active targets of its endpoint |
+| `list_dispatches` | List deliveries by status and target |
+| `retry_dispatch` | Queue a failed delivery for retry |
+
+`list_webhooks` and `list_dispatches` return 20 records by default and at most 100 (`limit`); `list_endpoints` and
+`list_targets` return every record. Requests with an `Origin` header naming another origin, or an unsupported
+`MCP-Protocol-Version` header, are rejected.
 
 ### Configuring Targets
 
@@ -221,6 +250,7 @@ whitespace is stripped.
 | POST | `/webhooks/receive/:slug` | None | Receive incoming webhooks on a named endpoint |
 | GET | `/health` | None | Health check endpoint |
 | GET | `/admin/*` | Basic | Admin dashboard |
+| POST | `/mcp` | Basic | MCP server for admin tools |
 | GET | `/jobs` | Basic | Mission Control jobs dashboard |
 
 ## Delivery Headers
