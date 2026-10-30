@@ -100,6 +100,9 @@ module Mcp
       tool_result(send(name, arguments), error: false)
     rescue ArgumentsError, ActiveRecord::RecordNotFound, ActiveRecord::RecordInvalid => e
       tool_result({ error: e.message }, error: true)
+    rescue StandardError => e
+      Rails.logger.error("MCP tool #{name} failed: #{e.class}: #{e.message}")
+      tool_result({ error: "#{name} failed: #{e.class}: #{e.message}" }, error: true)
     end
 
     private
@@ -149,7 +152,7 @@ module Mcp
     def list_webhooks(arguments)
       webhooks = Webhook.includes(:endpoint)
         .for_endpoint(arguments["endpoint_id"])
-        .search_text(arguments["query"])
+        .search_text(string(arguments, "query"))
         .order(received_at: :desc)
         .limit(limit(arguments))
         .to_a
@@ -229,6 +232,17 @@ module Mcp
       Integer(arguments[key])
     rescue ArgumentError, TypeError
       raise ArgumentsError, "#{key} must be an integer"
+    end
+
+    # Reads an optional string argument.
+    # @param arguments [Hash] arguments sent by the client, keyed by name
+    # @param key [String] argument name
+    # @return [String, nil] the argument's value
+    def string(arguments, key)
+      value = arguments[key]
+      raise ArgumentsError, "#{key} must be a string" unless value.nil? || value.is_a?(String)
+
+      value
     end
 
     # Reads the +limit+ argument, clamped to 1..MAX_LIMIT.

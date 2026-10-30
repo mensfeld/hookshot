@@ -57,6 +57,19 @@ RSpec.describe "MCP server" do
       expect(response.body).to be_empty
     end
 
+    it "rejects an unsupported MCP-Protocol-Version header" do
+      rpc("ping", headers: auth_headers.merge("MCP-Protocol-Version" => "bogus"))
+
+      expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body["error"]["message"]).to eq("Unsupported protocol version: bogus")
+    end
+
+    it "accepts a supported MCP-Protocol-Version header" do
+      rpc("ping", headers: auth_headers.merge("MCP-Protocol-Version" => "2025-06-18"))
+
+      expect(response).to have_http_status(:ok)
+    end
+
     it "rejects messages that are not JSON-RPC 2.0 requests" do
       post "/mcp", params: [ { jsonrpc: "2.0", id: 1, method: "ping" } ].to_json, headers: auth_headers
 
@@ -128,8 +141,20 @@ RSpec.describe "MCP server" do
       expect(data["error"]).to eq("id must be an integer")
     end
 
+    it "reports unexpected failures as a tool error" do
+      allow(Endpoint).to receive(:includes).and_raise(ActiveRecord::StatementInvalid, "database is locked")
+
+      data, error = call_tool("list_endpoints")
+
+      expect(response).to have_http_status(:ok)
+      expect(error).to be true
+      expect(data["error"]).to eq("list_endpoints failed: ActiveRecord::StatementInvalid: database is locked")
+    end
+
     describe "list_endpoints" do
       it "lists endpoints with their target ids" do
+        create(:target, :without_endpoints)
+
         data, error = call_tool("list_endpoints")
 
         expect(error).to be false
@@ -143,6 +168,17 @@ RSpec.describe "MCP server" do
 
         expect(data).to contain_exactly(include("id" => target.id, "name" => "Alpha", "endpoint_slugs" => [ "default" ]))
         expect(data.first).not_to have_key("custom_headers")
+      end
+
+      it "shows each target's 24h success rate" do
+        idle = create(:target, name: "Beta")
+        create(:delivery, :success, webhook: webhook, target: target)
+        create(:delivery, :success, webhook: webhook, target: target)
+        create(:delivery, :failed, webhook: webhook, target: target)
+
+        data, = call_tool("list_targets")
+
+        expect(data.to_h { |row| [ row["id"], row["success_rate_24h"] ] }).to eq(target.id => 66.7, idle.id => 0)
       end
     end
 
@@ -168,11 +204,30 @@ RSpec.describe "MCP server" do
       let!(:other_endpoint) { create(:endpoint) }
       let!(:other_webhook) { create(:webhook, endpoint: other_endpoint, payload: { event: "order.paid" }.to_json, received_at: 1.hour.ago) }
 
-      it "lists webhooks newest first" do
+      it "lists webhooks newest first with their dispatch stats" do
+        create(:delivery, :success, webhook: webhook, target: target)
+        create(:delivery, :failed, webhook: webhook, target: target)
+
         data, = call_tool("list_webhooks")
 
         expect(data.map { |row| row["id"] }).to eq([ webhook.id, other_webhook.id ])
-        expect(data.first).to include("endpoint_slug" => "default", "dispatch_stats" => { "success" => 0, "total" => 0 })
+        expect(data.first).to include("endpoint_slug" => "default", "dispatch_stats" => { "success" => 1, "total" => 2 })
+        expect(data.last).to include("endpoint_slug" => other_endpoint.slug, "dispatch_stats" => { "success" => 0, "total" => 0 })
+      end
+
+      it "clamps the limit to 1..MAX_LIMIT" do
+        stub_const("Mcp::Tools::MAX_LIMIT", 1)
+
+        expect(call_tool("list_webhooks", { limit: 500 }).first.size).to eq(1)
+        expect(call_tool("list_webhooks", { limit: 0 }).first.size).to eq(1)
+      end
+
+      it "requires a string query" do
+        data, error = call_tool("list_webhooks", { query: 5 })
+
+        expect(response).to have_http_status(:ok)
+        expect(error).to be true
+        expect(data["error"]).to eq("query must be a string")
       end
 
       it "filters by endpoint, search text and limit" do
@@ -189,6 +244,7 @@ RSpec.describe "MCP server" do
         data, = call_tool("get_webhook", { id: webhook.id })
 
         expect(data).to include("id" => webhook.id, "headers" => webhook.headers, "payload" => webhook.payload, "payload_truncated" => false)
+        expect(data["dispatch_stats"]).to eq("success" => 0, "total" => 1)
         expect(data["deliveries"]).to contain_exactly(include("id" => delivery.id, "status" => "failed", "target_name" => "Alpha"))
       end
 
@@ -198,6 +254,16 @@ RSpec.describe "MCP server" do
         data, = call_tool("get_webhook", { id: large.id })
 
         expect(data["payload"].bytesize).to eq(Mcp::Tools::PAYLOAD_PREVIEW_BYTES)
+        expect(data["payload_truncated"]).to be true
+      end
+
+      it "does not split a multibyte character at the preview limit" do
+        large = create(:webhook, payload: "a" + "é" * Mcp::Tools::PAYLOAD_PREVIEW_BYTES)
+
+        data, error = call_tool("get_webhook", { id: large.id })
+
+        expect(error).to be false
+        expect(data["payload"]).to eq("a" + "é" * ((Mcp::Tools::PAYLOAD_PREVIEW_BYTES - 1) / 2))
         expect(data["payload_truncated"]).to be true
       end
     end
@@ -228,6 +294,12 @@ RSpec.describe "MCP server" do
         expect(call_tool("list_dispatches", { status: "failed" }).first.map { |row| row["id"] }).to eq([ failed.id ])
         expect(call_tool("list_dispatches", { target_id: target.id }).first.map { |row| row["id"] }).to eq([ failed.id ])
         expect(call_tool("list_dispatches").first.size).to eq(2)
+      end
+
+      it "lists deliveries newest first" do
+        failed.update!(created_at: 1.hour.ago)
+
+        expect(call_tool("list_dispatches").first.map { |row| row["id"] }).to eq([ succeeded.id, failed.id ])
       end
 
       it "rejects unknown statuses" do

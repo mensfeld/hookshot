@@ -143,8 +143,9 @@ claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
 | `list_dispatches` | List deliveries by status and target |
 | `retry_dispatch` | Queue a failed delivery for retry |
 
-Listing tools return 20 records by default and at most 100 (`limit`). Requests with an `Origin` header from another
-host are rejected.
+`list_webhooks` and `list_dispatches` return 20 records by default and at most 100 (`limit`); `list_endpoints` and
+`list_targets` return every record. Requests with an `Origin` header naming another origin, or an unsupported
+`MCP-Protocol-Version` header, are rejected.
 
 ### Configuring Targets
 
