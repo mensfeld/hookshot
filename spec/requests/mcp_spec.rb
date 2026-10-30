@@ -141,14 +141,25 @@ RSpec.describe "MCP server" do
       expect(data["error"]).to eq("id must be an integer")
     end
 
-    it "reports unexpected failures as a tool error" do
+    it "reports unexpected failures as a tool error and to the error reporter" do
       allow(Endpoint).to receive(:includes).and_raise(ActiveRecord::StatementInvalid, "database is locked")
+      reports = []
+      probe = Object.new
+      probe.define_singleton_method(:report) { |error, **options| reports << [ error, options ] }
+      Rails.error.subscribe(probe)
 
-      data, error = call_tool("list_endpoints")
+      begin
+        data, error = call_tool("list_endpoints")
+      ensure
+        Rails.error.unsubscribe(probe)
+      end
 
       expect(response).to have_http_status(:ok)
       expect(error).to be true
       expect(data["error"]).to eq("list_endpoints failed: ActiveRecord::StatementInvalid: database is locked")
+      expect(reports.size).to eq(1)
+      expect(reports.first[0]).to be_a(ActiveRecord::StatementInvalid)
+      expect(reports.first[1]).to include(handled: true, severity: :error, context: include(mcp_tool: "list_endpoints"))
     end
 
     describe "list_endpoints" do

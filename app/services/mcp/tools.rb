@@ -101,7 +101,7 @@ module Mcp
     rescue ArgumentsError, ActiveRecord::RecordNotFound, ActiveRecord::RecordInvalid => e
       tool_result({ error: e.message }, error: true)
     rescue StandardError => e
-      Rails.logger.error("MCP tool #{name} failed: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true, severity: :error, context: { mcp_tool: name })
       tool_result({ error: "#{name} failed: #{e.class}: #{e.message}" }, error: true)
     end
 
