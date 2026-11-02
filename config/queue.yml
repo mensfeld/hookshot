@@ -5,7 +5,7 @@ default: &default
   workers:
     - queues: "default"
       threads: 5
-      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      processes: <%= Hookshot::Settings.job_concurrency %>
       polling_interval: 0.1
     - queues: "low"
       threads: 1

@@ -21,7 +21,7 @@ RSpec.describe CleanupJob do
     end
 
     it "respects custom RETENTION_DAYS" do
-      allow(ENV).to receive(:fetch).with("RETENTION_DAYS", 30).and_return("7")
+      allow(Hookshot::Settings).to receive(:retention_days).and_return(7)
 
       old_within_custom = create(:webhook, received_at: 6.days.ago)
       old_beyond_custom = create(:webhook, received_at: 8.days.ago)

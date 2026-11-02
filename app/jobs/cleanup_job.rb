@@ -9,7 +9,7 @@ class CleanupJob < ApplicationJob
   # The retention period is configured via the RETENTION_DAYS environment variable.
   # @return [void]
   def perform
-    retention_days = ENV.fetch("RETENTION_DAYS", 30).to_i
+    retention_days = Hookshot::Settings.retention_days
     deleted_count = Webhook.older_than(retention_days).destroy_all.count
 
     Rails.logger.info "[CleanupJob] Deleted #{deleted_count} webhooks older than #{retention_days} days"
