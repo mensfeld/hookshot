@@ -8,7 +8,7 @@ module Webhooks
     skip_before_action :verify_authenticity_token
 
     # Maximum allowed payload size in bytes (default: 1MB).
-    MAX_PAYLOAD_SIZE = ENV.fetch("MAX_PAYLOAD_SIZE", 1_048_576).to_i
+    MAX_PAYLOAD_SIZE = Hookshot::Settings.max_payload_size
 
     # Receives and processes an incoming webhook.
     # @return [void] responds with 200 OK on success, 404 for an unknown or inactive endpoint

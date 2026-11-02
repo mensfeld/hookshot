@@ -78,6 +78,8 @@ rails server
 | `MAX_PAYLOAD_SIZE` | `1048576` | Maximum webhook body size in bytes; larger bodies are rejected with `413` |
 | `JOB_CONCURRENCY` | `1` | Number of Solid Queue worker processes for the `default` queue, which delivers webhooks |
 
+`RETENTION_DAYS`, `MAX_PAYLOAD_SIZE` and `JOB_CONCURRENCY` must be positive integers (digits only; underscores such as `1_000_000` are allowed). Hookshot checks them at boot and refuses to start, with an error naming the variable and its value, when one is set to anything else (empty, `0`, negative, non-numeric or with a unit such as `10MB`). An unset variable keeps its default.
+
 ### Background Jobs
 
 In development, enqueued jobs (e.g., webhook deliveries) run inside the Rails server process (Active Job's default
