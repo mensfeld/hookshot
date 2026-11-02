@@ -188,4 +188,29 @@ RSpec.describe "Admin target filter editor" do
     expect(response).to redirect_to(admin_targets_path)
     expect(target.reload.filters).to eq([ kept ])
   end
+
+  context "with a wildcard filter whose value looks like a regular expression" do
+    before do
+      create(:filter, target: target, filter_type: :payload, field: "$.comment.user.login", operator: :matches,
+        value: '\A(mensfeld|.*copilot.*)\z')
+      create(:filter, target: target, filter_type: :payload, field: "$.sender.login", operator: :matches,
+        value: "*copilot*")
+      get "/admin/targets/#{target.id}/edit", headers: auth_headers
+    end
+
+    it "shows the regex warning only on that row" do
+      rows = rows_in(cards.first)
+
+      expect(rows.map { |row| row.at_css("[data-regex-warning]")["hidden"].nil? }).to eq([ true, false ])
+      expect(rows.first.at_css("input[name$='[value]']")["class"]).to include("input-warning")
+      expect(rows.last.at_css("input[name$='[value]']")["class"]).not_to include("input-warning")
+    end
+
+    it "refreshes the warning when the operator or value changes" do
+      row = rows_in(cards.first).first
+
+      expect(row.at_css("select[name$='[operator]']")["data-action"]).to eq("change->filters#refresh")
+      expect(row.at_css("input[name$='[value]']")["data-action"]).to eq("input->filters#refresh")
+    end
+  end
 end
