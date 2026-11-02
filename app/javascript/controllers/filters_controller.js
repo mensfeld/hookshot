@@ -2,6 +2,9 @@ import { Controller } from "@hotwired/stimulus"
 
 const DEFAULT_GROUP = "default"
 
+// Regular expression syntax that wildcard values do not use. Kept in sync with Filter::REGEX_HINT.
+const REGEX_HINT = /\\|\||^\^|\$$|\.[*+?]|\(\?|\[[^\]]-[^\]]\]|\{\d+(,\d*)?\}/
+
 // Edits filters as group cards: filters inside a card are AND-ed, cards are OR-ed.
 // Each card has a name input (not submitted) that is mirrored into the hidden group_key field of its rows.
 export default class extends Controller {
@@ -160,8 +163,11 @@ export default class extends Controller {
     group.querySelectorAll(".group-field").forEach((field) => { field.value = name })
   }
 
-  // Shows OR between visible groups and AND between visible rows of a group, flags empty groups and duplicate names
+  // Shows OR between visible groups and AND between visible rows of a group, flags empty groups, duplicate names and
+  // wildcard values that look like regular expressions
   refresh() {
+    this.rowTargets.forEach((row) => this.flagRegexLikeWildcard(row))
+
     const groups = this.visible(this.groupTargets)
     const counts = {}
     groups.forEach((group) => {
@@ -180,6 +186,17 @@ export default class extends Controller {
       group.querySelector("[data-group-name]").classList.toggle("input-warning", duplicate)
       group.querySelector("[data-duplicate-warning]").hidden = !duplicate
     })
+  }
+
+  flagRegexLikeWildcard(row) {
+    const warning = row.querySelector("[data-regex-warning]")
+    if (!warning) return
+
+    const input = row.querySelector("input[name$='[value]']")
+    const wildcard = row.querySelector("select[name$='[operator]']").value === "matches"
+    const regexLike = wildcard && REGEX_HINT.test(input.value)
+    warning.hidden = !regexLike
+    input.classList.toggle("input-warning", regexLike)
   }
 
   build(template) {

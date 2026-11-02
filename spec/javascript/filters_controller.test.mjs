@@ -49,9 +49,10 @@ function row({ index, id = null, group = "default", type = "header", field = "",
       <input type="hidden" name="${name("group_key")}" value="${group}" class="group-field">
       <select name="${name("filter_type")}">${option(type, "header")}${option(type, "payload")}</select>
       <input type="text" name="${name("field")}" value="${field}">
-      <select name="${name("operator")}">${["exists", "equals", "matches", "regex"].map((o) => option(operator, o)).join("")}</select>
-      <input type="text" name="${name("value")}" value="${value}">
+      <select name="${name("operator")}" data-action="change->filters#refresh">${["exists", "equals", "matches", "regex"].map((o) => option(operator, o)).join("")}</select>
+      <input type="text" name="${name("value")}" value="${value}" data-action="input->filters#refresh">
       <button type="button" data-action="click->filters#removeFilter">x</button>
+      <p data-regex-warning hidden>looks like a regex</p>
     </div>`
 }
 
@@ -167,6 +168,46 @@ test("warns while two groups share a name and clears the warning once renamed", 
     assert.equal(card.querySelector("[data-duplicate-warning]").hidden, true)
     assert.ok(!card.querySelector("[data-group-name]").classList.contains("input-warning"))
   }
+})
+
+// Regex-like wildcard values ----------------------------------------------------------------------------------------
+
+const regexWarning = (r) => r.querySelector("[data-regex-warning]")
+const valueInput = (r) => r.querySelector("input[name$='[value]']")
+
+async function change(element, value, eventName) {
+  element.value = value
+  element.dispatchEvent(new Event(eventName, { bubbles: true }))
+  await tick()
+}
+
+test("warns on load about a wildcard value that looks like a regular expression", async () => {
+  await mount([group("default", [
+    row({ index: 0, id: 1, type: "payload", field: "$.comment.user.login", operator: "matches", value: "\\A(mensfeld|.*copilot.*)\\z" }),
+    row({ index: 1, id: 2, type: "payload", field: "$.sender.login", operator: "matches", value: "*copilot*" }),
+    row({ index: 2, id: 3, field: "X-GitHub-Event", operator: "regex", value: "\\A(issue_comment|pull_request_review_comment)\\z" })
+  ])])
+
+  const rows = rowsOf(cards()[0])
+  assert.deepEqual(rows.map((r) => regexWarning(r).hidden), [false, true, true])
+  assert.ok(valueInput(rows[0]).classList.contains("input-warning"))
+  assert.ok(!valueInput(rows[1]).classList.contains("input-warning"))
+})
+
+test("updates the regex warning while the value or operator changes", async () => {
+  await mount([group("default", [row({ index: 0, type: "payload", field: "$.login", operator: "matches", value: "*bot*" })])])
+  const [only] = rowsOf(cards()[0])
+
+  await change(valueInput(only), "mensfeld|copilot", "input")
+  assert.equal(regexWarning(only).hidden, false)
+
+  await change(only.querySelector("select[name$='[operator]']"), "regex", "change")
+  assert.equal(regexWarning(only).hidden, true)
+  assert.ok(!valueInput(only).classList.contains("input-warning"))
+
+  await change(only.querySelector("select[name$='[operator]']"), "matches", "change")
+  await change(valueInput(only), "*copilot*", "input")
+  assert.equal(regexWarning(only).hidden, true)
 })
 
 // Adding ----------------------------------------------------------------------------------------------------------

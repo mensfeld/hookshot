@@ -1,6 +1,7 @@
 <%# One filter (AND-ed with the other filters in its group). The group key is a hidden field kept in sync with the
     group card's name by the filters Stimulus controller. %>
 <% removed = filter_form.object.marked_for_destruction? %>
+<% regex_like = filter_form.object.regex_like_wildcard? %>
 <div class="relative grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-base-200 p-3 rounded-box"
      data-filters-target="row" <% if removed %>hidden<% end %>>
   <span class="badge badge-xs badge-neutral absolute -top-2.5 left-4 uppercase tracking-wide" data-and-label <% if first %>hidden<% end %>>and</span>
@@ -15,10 +16,12 @@
       class: "input input-bordered input-sm w-full md:col-span-4 font-mono", aria: { label: "Field" } %>
 
   <%= filter_form.select :operator, Filter.operator_options,
-      {}, class: "select select-bordered select-sm w-full md:col-span-2", aria: { label: "Operator" } %>
+      {}, class: "select select-bordered select-sm w-full md:col-span-2", aria: { label: "Operator" },
+      data: { action: "change->filters#refresh" } %>
 
   <%= filter_form.text_field :value, placeholder: "Value", autocomplete: "off",
-      class: "input input-bordered input-sm w-full md:col-span-3", aria: { label: "Value" } %>
+      class: "input input-bordered input-sm w-full md:col-span-3#{' input-warning' if regex_like}",
+      aria: { label: "Value" }, data: { action: "input->filters#refresh" } %>
 
   <button type="button" class="btn btn-ghost btn-sm btn-square md:col-span-1" title="Remove filter"
           aria-label="Remove filter" data-action="click->filters#removeFilter">
@@ -26,4 +29,9 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
     </svg>
   </button>
+
+  <p class="md:col-span-12 text-xs text-warning" data-regex-warning <% unless regex_like %>hidden<% end %>>
+    This value looks like a regular expression, but wildcard matching treats every character except <code>*</code>
+    literally. Use the "Matches regex" operator instead.
+  </p>
 </div>

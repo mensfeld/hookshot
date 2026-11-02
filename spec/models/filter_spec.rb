@@ -169,4 +169,46 @@ RSpec.describe Filter do
       expect(build(:filter, group_key: "ci-fail")).not_to be_default_group
     end
   end
+
+  describe "#regex_like_wildcard?" do
+    [
+      '\A(mensfeld|.*copilot.*)\z',
+      "mensfeld|copilot",
+      "^refs/heads/",
+      "-bot$",
+      "copilot.*",
+      "release-.+",
+      "(?i)copilot",
+      "v[0-9]",
+      "a{3}",
+      '\d+'
+    ].each do |value|
+      it "is true for the wildcard value #{value.inspect}" do
+        expect(build(:filter, operator: :matches, value: value)).to be_regex_like_wildcard
+      end
+    end
+
+    [
+      "*copilot*",
+      "refs/heads/*",
+      "*@example.com",
+      "coipond-writer[bot]",
+      "maciej+test@example.com",
+      "Price $5 (estimate)",
+      "a.b.c"
+    ].each do |value|
+      it "is false for the plain wildcard value #{value.inspect}" do
+        expect(build(:filter, operator: :matches, value: value)).not_to be_regex_like_wildcard
+      end
+    end
+
+    it "is false for other operators" do
+      expect(build(:filter, operator: :regex, value: '\A(a|b)\z')).not_to be_regex_like_wildcard
+      expect(build(:filter, operator: :equals, value: "a|b")).not_to be_regex_like_wildcard
+    end
+
+    it "is false without a value" do
+      expect(build(:filter, operator: :matches, value: nil)).not_to be_regex_like_wildcard
+    end
+  end
 end

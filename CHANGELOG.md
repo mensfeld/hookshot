@@ -7,6 +7,7 @@
 - [Enhancement] Webhooks record the endpoint that received them, can be filtered by it, and replay to that endpoint's current targets.
 - [Enhancement] Unknown or inactive endpoints answer 404 and store nothing.
 - [Maintenance] Migration creates a `default` endpoint for the existing `/webhooks/receive` URL and attaches every existing target and webhook to it, so routing is unchanged after upgrading. Run `bin/rails db:migrate`.
+- [Enhancement] Warn when a "Matches (wildcard)" filter's value looks like a regular expression (`\`, `|`, `.*`, `(?`, a leading `^` or trailing `$`, `[a-z]` ranges or `{n}` quantifiers). Wildcard matching treats everything except `*` literally, so such a filter never matches what was meant. The target form shows the warning live under the filter, and the target page marks the filter with a "looks like a regex" badge.
 - [Change] Targets that are not attached to the receiving endpoint no longer get a delivery record at all (previously they got a `filtered` one when their filters rejected the webhook).
 
 ## 1.4.0 (2026-10-09)

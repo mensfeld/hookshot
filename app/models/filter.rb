@@ -28,6 +28,11 @@ class Filter < ApplicationRecord
   # pathological pattern must not be able to stall it.
   REGEX_TIMEOUT = 0.1
 
+  # Regular expression syntax that wildcard values do not use. A wildcard value containing any of these is most likely
+  # a regular expression entered with the wrong operator: wildcard matching treats everything except "*" literally.
+  # Kept in sync with REGEX_HINT in app/javascript/controllers/filters_controller.js.
+  REGEX_HINT = /\\|\||\A\^|\$\z|\.[*+?]|\(\?|\[[^\]]-[^\]]\]|\{\d+(,\d*)?\}/
+
   enum :operator, { exists: 0, equals: 1, matches: 2, regex: 3 }
 
   validates :filter_type, :field, :operator, presence: true
@@ -63,6 +68,13 @@ class Filter < ApplicationRecord
   # @raise [RegexpError] when the value is not a valid regular expression
   def compiled_regex
     Regexp.new(value.to_s, timeout: REGEX_TIMEOUT)
+  end
+
+  # Checks whether a wildcard filter's value looks like a regular expression. Such a filter matches the value
+  # literally, which is rarely what was meant, so the admin UI warns about it.
+  # @return [Boolean] true for a "matches" filter whose value contains regular expression syntax
+  def regex_like_wildcard?
+    matches? && REGEX_HINT.match?(value.to_s)
   end
 
   # Checks whether this filter belongs to the implicit default group.

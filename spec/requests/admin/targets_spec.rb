@@ -325,6 +325,24 @@ RSpec.describe "Admin Targets" do
       expect(body).to include("Payload &#39;$.comment.user.login&#39; matches &#39;*copilot*&#39;")
     end
 
+    it "flags wildcard filters whose value looks like a regular expression" do
+      create(:filter, target: target, filter_type: :payload, field: "$.comment.user.login", operator: :matches,
+        value: '\A(mensfeld|.*copilot.*)\z')
+
+      get "/admin/targets/#{target.id}", headers: auth_headers
+
+      expect(response.body).to include("looks like a regex")
+    end
+
+    it "does not flag plain wildcard filters" do
+      create(:filter, target: target, filter_type: :payload, field: "$.comment.user.login", operator: :matches,
+        value: "*copilot*")
+
+      get "/admin/targets/#{target.id}", headers: auth_headers
+
+      expect(response.body).not_to include("looks like a regex")
+    end
+
     it "renders a single group as a plain AND" do
       create(:filter, target: target)
 

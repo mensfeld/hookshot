@@ -22,6 +22,9 @@
               <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mr-1">and</span>
             <% end %>
             <span class="font-mono"><%= filter.description %></span>
+            <% if filter.regex_like_wildcard? %>
+              <span class="badge badge-warning badge-sm ml-1" title="Wildcard matching treats every character except * literally. Use the &quot;Matches regex&quot; operator instead.">looks like a regex</span>
+            <% end %>
           </div>
         <% end %>
       </div>
