@@ -13,6 +13,9 @@ module Hookshot
       "JOB_CONCURRENCY" => 1
     }.freeze
 
+    # Digits only, optionally grouped with underscores; no sign, whitespace, decimals or units.
+    FORMAT = /\A\d+(?:_\d+)*\z/
+
     # Raised when a setting is not a positive integer.
     class InvalidError < StandardError; end
 
@@ -46,7 +49,7 @@ module Hookshot
       # @raise [InvalidError] when the value is not a positive integer
       def fetch(name)
         value = ENV.fetch(name) { return DEFAULTS.fetch(name) }
-        integer = Integer(value, 10, exception: false)
+        integer = Integer(value, 10) if value.match?(FORMAT)
         return integer if integer&.positive?
 
         raise InvalidError, "#{name} must be a positive integer, got #{value.inspect}"

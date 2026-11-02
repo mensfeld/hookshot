@@ -34,7 +34,7 @@ RSpec.describe Hookshot::Settings do
         expect(described_class.public_send(reader)).to eq(1000)
       end
 
-      [ "", "0", "-5", "abc", "10MB", "1.5", "0x10" ].each do |value|
+      [ "", "0", "-5", "+7", " 7 ", "7\n", "1__0", "_1", "abc", "10MB", "1.5", "0x10" ].each do |value|
         it "rejects #{name}=#{value.inspect}" do
           ENV[name] = value
 
@@ -49,6 +49,34 @@ RSpec.describe Hookshot::Settings do
   describe ".validate!" do
     it "passes when every setting is unset or valid" do
       expect { described_class.validate! }.not_to raise_error
+    end
+  end
+
+  describe "config/initializers/settings.rb" do
+    let(:initializer) { Rails.root.join("config/initializers/settings.rb") }
+
+    around do |example|
+      originals = described_class::DEFAULTS.keys.index_with { |name| ENV.fetch(name, nil) }
+      example.run
+    ensure
+      originals.each { |name, value| ENV[name] = value }
+    end
+
+    it "boots with valid settings" do
+      ENV["RETENTION_DAYS"] = "7"
+      ENV["MAX_PAYLOAD_SIZE"] = "1_000_000"
+      ENV["JOB_CONCURRENCY"] = "2"
+
+      expect { load initializer }.not_to raise_error
+    end
+
+    described_class::DEFAULTS.each_key do |name|
+      it "refuses to boot with an invalid #{name}" do
+        ENV[name] = "0"
+
+        expect { load initializer }
+          .to raise_error(described_class::InvalidError, "#{name} must be a positive integer, got \"0\"")
+      end
     end
   end
 
