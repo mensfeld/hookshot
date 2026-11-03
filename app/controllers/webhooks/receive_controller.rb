@@ -43,7 +43,8 @@ module Webhooks
     private
 
     # Rails parses the body into params before the action runs (parameter wrapping and request logging) and answers
-    # 400 or 500 when it cannot: a form, multipart or JSON body that does not parse, or one that is not valid UTF-8.
+    # 400 or 500 when it cannot: a form or multipart body that does not parse, or a form, multipart or JSON body that
+    # is not valid UTF-8. A malformed JSON body is skipped by Rails before the action.
     # The action reads only the raw body and the path, so the params are the path parameters, whatever the body is.
     # @return [void]
     def process_action(*)

@@ -123,10 +123,6 @@ RSpec.describe "POST /webhooks/receive" do
     end
 
     context "with invalid UTF-8 byte sequences in the raw body" do
-      # Content-Type is deliberately not application/json here: Rails parses
-      # JSON bodies into params before the action runs, so an invalid-encoding
-      # payload would 400 out at that layer rather than exercising the
-      # controller's own raw_post handling.
       let(:invalid_payload) { "note: broken \xE2 sequence".b }
 
       it "does not raise an encoding error" do
