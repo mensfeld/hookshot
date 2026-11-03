@@ -42,24 +42,15 @@ module Webhooks
 
     private
 
-    # Rails parses the body into params before the action runs (request logging) and answers 400 when a form or
-    # multipart body cannot be parsed. The action reads only the raw body and the path, so an unparsable body falls
-    # back to the path parameters and is stored like any other.
+    # Rails parses the body into params before the action runs (parameter wrapping and request logging) and answers
+    # 400 or 500 when it cannot: a form or multipart body that does not parse, or a form, multipart or JSON body that
+    # is not valid UTF-8. A malformed JSON body is skipped by Rails before the action.
+    # The action reads only the raw body and the path, so the params are the path parameters, whatever the body is.
     # @return [void]
     def process_action(*)
-      ignore_unparsable_parameters
-      super
-    end
-
-    # Replaces the request parameters with the path parameters when the body or query string cannot be parsed.
-    # A malformed JSON body is left as is: Rails already skips its ParseError before the action.
-    # @return [void]
-    def ignore_unparsable_parameters
-      request.parameters
-    rescue ActionController::BadRequest
+      request.request_parameters = {}
       request.set_header("action_dispatch.request.parameters", request.path_parameters.with_indifferent_access)
-    rescue ActionDispatch::Http::Parameters::ParseError
-      nil
+      super
     end
 
     # Finds the active endpoint addressed by the request: the slug from the URL path, or the default endpoint for

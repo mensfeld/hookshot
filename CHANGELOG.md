@@ -15,6 +15,7 @@
 - [Fix] A delivery that fails all 5 ActiveJob attempts moves to the recurring retry phase instead of raising `NameError` and stopping after 5 attempts; it is then retried 1 h, 2 h, 4 h, 8 h and 24 h apart, one attempt each, and given up after attempt 10.
 - [Fix] Client errors (4xx) and deleted deliveries are no longer retried, in the ActiveJob or the recurring retry phase.
 - [Fix] Webhooks with a malformed form or multipart body (bad percent-escapes, too deeply nested parameters, a broken multipart boundary) or a malformed query string on the receive URL are stored unchanged and answered 200 instead of being rejected with 400.
+- [Fix] JSON bodies that are not valid UTF-8 (a Latin-1 value such as `{"name":"Jos\xE9"}`, or an invalid UTF-8 key) are stored unchanged and answered 200 instead of being rejected with 400 or 500. The receive controller no longer parses the body or query string, so the request log `Parameters:` line for the receive URL lists only the path parameters, not the body or query parameters.
 
 ## 1.4.0 (2026-10-09)
 - [Feature] Bulk retry on the Dispatches page: select retryable rows (with a select-all checkbox and shift-click range selection) and use "Retry selected".
