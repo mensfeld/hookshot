@@ -150,7 +150,9 @@ RSpec.describe "POST /webhooks/receive" do
 
       {
         "a gzip body" => [ "application/octet-stream", Zlib.gzip("hello hookshot") ],
-        "a Latin-1 body" => [ "text/plain; charset=iso-8859-1", "caf\xE9".b ]
+        "a Latin-1 body" => [ "text/plain; charset=iso-8859-1", "caf\xE9".b ],
+        "a Latin-1 JSON body" => [ "application/json", %({"name":"Jos\xE9"}).b ],
+        "a JSON body with an invalid UTF-8 key" => [ "application/json", %({"\xFF":1}).b ]
       }.each do |name, (content_type, body)|
         it "stores and relays #{name} byte for byte" do
           perform_enqueued_jobs do
