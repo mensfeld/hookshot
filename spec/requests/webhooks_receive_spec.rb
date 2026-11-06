@@ -3,7 +3,34 @@
 require "rails_helper"
 
 RSpec.describe "POST /webhooks/receive" do
+  describe "routing" do
+    let(:payload) { { event: "test.event" }.to_json }
+    let!(:target) { create(:target, active: true) }
+
+    it "stores the webhook and enqueues its routing without creating deliveries in the request" do
+      expect {
+        post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+      }.to change(Webhook, :count).by(1)
+
+      expect(response).to have_http_status(:ok)
+      expect(Delivery.count).to eq(0)
+      expect(RouteWebhookJob).to have_been_enqueued.with(Webhook.last.id)
+      expect(DispatchJob).not_to have_been_enqueued
+    end
+
+    it "creates the deliveries when the routing job runs" do
+      post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+
+      expect { perform_enqueued_jobs(only: RouteWebhookJob) }.to change(Delivery, :count).by(1)
+      expect(Delivery.last).to have_attributes(webhook: Webhook.last, target: target, status: "pending")
+      expect(DispatchJob).to have_been_enqueued.with(Delivery.last.id)
+    end
+  end
+
   describe "webhook reception" do
+    # Checks deliveries right after the request, so the routing job (enqueued by the request) runs inline.
+    around { |example| perform_enqueued_jobs(only: RouteWebhookJob) { example.run } }
+
     let(:payload) { { event: "test.event", data: { id: 1 } }.to_json }
 
     it "creates a webhook record" do
@@ -249,6 +276,9 @@ RSpec.describe "POST /webhooks/receive" do
   end
 
   describe "endpoints" do
+    # Checks deliveries right after the request, so the routing job (enqueued by the request) runs inline.
+    around { |example| perform_enqueued_jobs(only: RouteWebhookJob) { example.run } }
+
     let(:payload) { { action: "opened" }.to_json }
     let(:json) { { "CONTENT_TYPE" => "application/json" } }
     let(:deploys) { create(:endpoint, name: "Deploys", slug: "deploys") }
