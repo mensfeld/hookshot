@@ -16,6 +16,7 @@
 - [Fix] Client errors (4xx) and deleted deliveries are no longer retried, in the ActiveJob or the recurring retry phase.
 - [Fix] Webhooks with a malformed form or multipart body (bad percent-escapes, too deeply nested parameters, a broken multipart boundary) or a malformed query string on the receive URL are stored unchanged and answered 200 instead of being rejected with 400.
 - [Fix] JSON bodies that are not valid UTF-8 (a Latin-1 value such as `{"name":"Jos\xE9"}`, or an invalid UTF-8 key) are stored unchanged and answered 200 instead of being rejected with 400 or 500. The receive controller no longer parses the body or query string, so the request log `Parameters:` line for the receive URL lists only the path parameters, not the body or query parameters.
+- [Enhancement] The daily cleanup deletes old webhooks and their deliveries in batches of 500, each in a short transaction with a brief pause between batches, instead of one record at a time. Incoming webhooks no longer wait on the SQLite write lock while a large cleanup runs.
 
 ## 1.4.0 (2026-10-09)
 - [Feature] Bulk retry on the Dispatches page: select retryable rows (with a select-all checkbox and shift-click range selection) and use "Retry selected".
