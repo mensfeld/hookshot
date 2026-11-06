@@ -29,6 +29,23 @@ RSpec.describe WebhookDispatcher do
       end
     end
 
+    context "with skip_routed" do
+      let!(:routed_target) { create(:target) }
+      let!(:new_target) { create(:target) }
+
+      before { create(:delivery, webhook: webhook, target: routed_target) }
+
+      it "creates deliveries only for targets without a delivery of this webhook" do
+        expect { dispatcher.dispatch(skip_routed: true) }.to change(Delivery, :count).by(1)
+
+        expect(Delivery.last.target).to eq(new_target)
+      end
+
+      it "delivers to every target again without it (a replay)" do
+        expect { dispatcher.dispatch }.to change(Delivery, :count).by(2)
+      end
+    end
+
     context "with targets attached to other endpoints" do
       let(:deploys) { create(:endpoint, slug: "deploys") }
       let!(:deploys_target) { create(:target, endpoints: [ deploys ]) }

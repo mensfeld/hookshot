@@ -3,7 +3,8 @@
 # Namespace for webhook reception controllers.
 module Webhooks
   # Handles incoming webhook requests.
-  # Stores the webhook with the endpoint it was sent to and dispatches it to that endpoint's targets.
+  # Stores the webhook with the endpoint it was sent to and enqueues a job that routes it to that endpoint's targets,
+  # so the sender gets its answer after storing two rows, whatever the number of targets.
   class ReceiveController < ApplicationController
     skip_before_action :verify_authenticity_token
 
@@ -33,7 +34,7 @@ module Webhooks
         received_at: Time.current
       )
 
-      WebhookDispatcher.new(webhook).dispatch
+      RouteWebhookJob.perform_later(webhook.id)
 
       head :ok
     rescue ActiveRecord::RecordInvalid => e

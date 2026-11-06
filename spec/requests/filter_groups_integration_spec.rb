@@ -7,6 +7,9 @@ require "rails_helper"
 RSpec.describe "Filter groups end-to-end" do
   include ActiveJob::TestHelper
 
+  # The receive request only enqueues the routing; run it inline so each request leaves its deliveries behind.
+  around { |example| perform_enqueued_jobs(only: RouteWebhookJob) { example.run } }
+
   let(:auth_headers) do
     { "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("admin", "changeme") }
   end

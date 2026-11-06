@@ -12,11 +12,16 @@ class WebhookDispatcher
 
   # Dispatches the webhook to the active targets of the endpoint that received it.
   # Creates a delivery record for each target and enqueues dispatch jobs for those passing their filters.
+  # @param skip_routed [Boolean] skip targets that already have a delivery of this webhook (used when routing a
+  #   received webhook, so a retried routing does not deliver twice; a replay leaves it off to deliver again)
   # @return [void]
-  def dispatch
+  def dispatch(skip_routed: false)
     return unless @webhook.endpoint
 
-    @webhook.endpoint.targets.active.find_each do |target|
+    targets = @webhook.endpoint.targets.active
+    targets = targets.where.not(id: @webhook.deliveries.select(:target_id)) if skip_routed
+
+    targets.find_each do |target|
       dispatch_to_target(target)
     end
   end
