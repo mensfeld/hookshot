@@ -18,7 +18,7 @@ class RouteWebhookJob < ApplicationJob
 
   # Creates a delivery for each active target of the webhook's endpoint and enqueues those that pass their filters.
   # Skips targets that already have a delivery of this webhook, so a retry after a partial run does not deliver twice.
-  # @param webhook_id [Integer] ID of the webhook to route
+  # @param webhook_id [Integer]
   # @return [void]
   def perform(webhook_id)
     WebhookDispatcher.new(Webhook.find(webhook_id)).dispatch(skip_routed: true)
