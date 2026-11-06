@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe Delivery do
   describe "associations" do
     it { is_expected.to belong_to(:webhook) }
-    it { is_expected.to belong_to(:target) }
+    it { is_expected.to belong_to(:target).optional }
   end
 
   describe "enums" do
@@ -67,6 +67,12 @@ RSpec.describe Delivery do
         expect(results).not_to include(activejob_phase_delivery)
         expect(results).not_to include(exhausted_delivery)
       end
+
+      it "leaves out deliveries whose target was deleted" do
+        ready_delivery.update_column(:target_id, nil)
+
+        expect(described_class.ready_for_retry).not_to include(ready_delivery)
+      end
     end
   end
 
@@ -101,6 +107,12 @@ RSpec.describe Delivery do
       create(:delivery, status: :pending)
 
       expect(described_class.retryable).to contain_exactly(retryable)
+    end
+
+    it "leaves out deliveries whose target was deleted" do
+      create(:delivery, :retryable).target.destroy!
+
+      expect(described_class.retryable).to be_empty
     end
   end
 
@@ -146,6 +158,14 @@ RSpec.describe Delivery do
   end
 
   describe "#retryable?" do
+    context "when failed but its target was deleted" do
+      let(:delivery) { build(:delivery, :retryable, target: nil) }
+
+      it "returns false" do
+        expect(delivery.retryable?).to be false
+      end
+    end
+
     context "when failed with fewer than 10 attempts" do
       let(:delivery) { build(:delivery, :retryable) }
 

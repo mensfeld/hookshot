@@ -34,6 +34,26 @@ RSpec.describe Target do
     it { is_expected.to have_many(:deliveries).dependent(:nullify) }
   end
 
+  describe "#destroy" do
+    let(:target) { create(:target) }
+
+    it "keeps the target's deliveries without a target" do
+      delivery = create(:delivery, :success, target: target)
+
+      target.destroy!
+
+      expect(delivery.reload.target_id).to be_nil
+    end
+
+    it "clears the scheduled retries of its deliveries" do
+      delivery = create(:delivery, :retryable, target: target, retry_stage: :recurring_job_phase, next_retry_at: 1.hour.from_now)
+
+      target.destroy!
+
+      expect(delivery.reload).to have_attributes(target_id: nil, next_retry_at: nil, status: "failed")
+    end
+  end
+
   describe "scopes" do
     describe ".active" do
       let!(:active_target) { create(:target, active: true) }

@@ -40,6 +40,12 @@ class DispatchJob < ApplicationJob
     delivery = Delivery.find(delivery_id)
     return if delivery.success? || delivery.filtered?
 
+    # The target was deleted after this job was queued: there is nowhere to deliver to
+    if delivery.target.nil?
+      delivery.update!(status: :failed, error_message: "Target was deleted", next_retry_at: nil)
+      return
+    end
+
     delivery.increment_attempts!
     Rails.logger.info "[DispatchJob] Delivery #{delivery.id} attempt #{delivery.attempts}/#{Delivery::MAX_TOTAL_ATTEMPTS}"
 

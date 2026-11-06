@@ -19,7 +19,10 @@ class WebhookDispatcher
     return unless @webhook.endpoint
 
     targets = @webhook.endpoint.targets.active
-    targets = targets.where.not(id: @webhook.deliveries.select(:target_id)) if skip_routed
+    if skip_routed
+      # A delivery of a deleted target has no target_id, and a NULL in a NOT IN list makes it match nothing
+      targets = targets.where.not(id: @webhook.deliveries.where.not(target_id: nil).select(:target_id))
+    end
 
     targets.find_each do |target|
       dispatch_to_target(target)
