@@ -41,6 +41,13 @@ RSpec.describe WebhookDispatcher do
         expect(Delivery.last.target).to eq(new_target)
       end
 
+      it "still skips routed targets when the webhook also has a delivery of a deleted target" do
+        create(:delivery, webhook: webhook, target: create(:target)).target.destroy!
+
+        expect { dispatcher.dispatch(skip_routed: true) }.to change(Delivery, :count).by(1)
+        expect(Delivery.last.target).to eq(new_target)
+      end
+
       it "delivers to every target again without it (a replay)" do
         expect { dispatcher.dispatch }.to change(Delivery, :count).by(2)
       end

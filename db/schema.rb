@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_090000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -22,7 +22,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
     t.integer "retry_stage", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.integer "status_code"
-    t.integer "target_id", null: false
+    t.integer "target_id"
     t.datetime "updated_at", null: false
     t.integer "webhook_id", null: false
     t.index ["created_at"], name: "index_deliveries_on_created_at"

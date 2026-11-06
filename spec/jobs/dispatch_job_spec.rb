@@ -143,6 +143,22 @@ RSpec.describe DispatchJob do
       end
     end
 
+    context "when the target was deleted after the job was queued" do
+      before do
+        delivery
+        target.destroy!
+      end
+
+      it "marks the delivery failed without making a request or retrying" do
+        stub_request(:post, target.url)
+
+        expect { described_class.perform_now(delivery.id) }.not_to have_enqueued_job(described_class)
+
+        expect(a_request(:post, target.url)).not_to have_been_made
+        expect(delivery.reload).to have_attributes(status: "failed", error_message: "Target was deleted", next_retry_at: nil)
+      end
+    end
+
     context "with non-existent delivery" do
       it "handles gracefully due to discard_on" do
         # discard_on ActiveRecord::RecordNotFound means no error is raised

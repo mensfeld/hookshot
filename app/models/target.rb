@@ -5,6 +5,8 @@
 class Target < ApplicationRecord
   has_many :filters, dependent: :destroy
   has_many :deliveries, dependent: :nullify
+  # Prepended so it runs before the nullify above, while the deliveries still point at this target
+  before_destroy :stop_delivery_retries, prepend: true
   has_many :endpoint_targets, dependent: :destroy
   has_many :endpoints, through: :endpoint_targets
 
@@ -56,5 +58,13 @@ class Target < ApplicationRecord
   # @return [Integer] count of filters
   def filter_count
     filters.count
+  end
+
+  private
+
+  # Clears the scheduled retries of this target's deliveries, so they no longer show a next retry once it is gone.
+  # @return [void]
+  def stop_delivery_retries
+    deliveries.where.not(next_retry_at: nil).update_all(next_retry_at: nil)
   end
 end

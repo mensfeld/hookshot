@@ -4,7 +4,8 @@
 # Tracks the status, response, and retry attempts for each delivery.
 class Delivery < ApplicationRecord
   belongs_to :webhook
-  belongs_to :target
+  # Optional: deleting a target keeps its deliveries as history, without a target
+  belongs_to :target, optional: true
 
   enum :status, { pending: 0, success: 1, failed: 2, filtered: 3 }
   enum :retry_stage, { activejob_phase: 0, recurring_job_phase: 1 }
@@ -32,9 +33,10 @@ class Delivery < ApplicationRecord
   ACTIVEJOB_MAX_ATTEMPTS = 5
 
   scope :recent_24h, -> { where("created_at >= ?", 24.hours.ago) }
-  scope :retryable, -> { failed.where("attempts < ?", MAX_TOTAL_ATTEMPTS) }
+  scope :retryable, -> { failed.where.not(target_id: nil).where("attempts < ?", MAX_TOTAL_ATTEMPTS) }
   scope :ready_for_retry, lambda {
     where(status: :failed, retry_stage: :recurring_job_phase)
+      .where.not(target_id: nil)
       .where("next_retry_at <= ?", Time.current)
       .where("attempts < ?", MAX_TOTAL_ATTEMPTS)
   }
@@ -58,9 +60,9 @@ class Delivery < ApplicationRecord
   end
 
   # Checks if the delivery can be retried.
-  # @return [Boolean] true if delivery failed and has fewer than MAX_TOTAL_ATTEMPTS
+  # @return [Boolean] true if delivery failed, still has its target and has fewer than MAX_TOTAL_ATTEMPTS
   def retryable?
-    failed? && attempts < MAX_TOTAL_ATTEMPTS
+    failed? && target.present? && attempts < MAX_TOTAL_ATTEMPTS
   end
 
   # Checks if the delivery is ready to transition to recurring job phase.

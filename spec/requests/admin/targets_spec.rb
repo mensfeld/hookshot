@@ -463,6 +463,15 @@ RSpec.describe "Admin Targets" do
 
       expect(response).to redirect_to(admin_targets_path)
     end
+
+    it "deletes a target that has deliveries and keeps them without a target" do
+      delivery = create(:delivery, target: target)
+
+      expect { delete "/admin/targets/#{target.id}", headers: auth_headers }.to change { Target.count }.by(-1)
+
+      expect(response).to redirect_to(admin_targets_path)
+      expect(delivery.reload.target_id).to be_nil
+    end
   end
 
   describe "POST /admin/targets/:id/test" do
