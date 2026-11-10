@@ -1,6 +1,6 @@
 # Hookshot changelog
 
-## 1.5.0 (Unreleased)
+## 1.5.0 (2026-11-09)
 - [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply. The endpoint comes from the URL path only, never from the request body or query string.
 - [Feature] Admin pages to create, edit, deactivate and delete endpoints, showing each receive URL with a copy button, its targets and recent activity.
 - [Feature] The target form selects which endpoints a target receives from; new targets start on the default endpoint, and targets without endpoints are flagged.
