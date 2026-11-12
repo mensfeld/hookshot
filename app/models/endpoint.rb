@@ -21,18 +21,27 @@ class Endpoint < ApplicationRecord
   # Verifier types an endpoint can use; nil verifies nothing.
   VERIFIERS = %w[hmac].freeze
 
+  # Signature settings naming a request header; Rails finds a header only by a name of letters, digits and dashes.
+  SIGNATURE_HEADER_SETTINGS = %i[signature_header timestamp_header].freeze
+
+  # Allowed request header name.
+  HEADER_NAME_FORMAT = /\A[A-Za-z0-9-]+\z/
+
   # Signature settings stored as nil instead of an empty string.
   OPTIONAL_SIGNATURE_SETTINGS = %i[
-    signature_preset signature_header signature_algorithm signature_encoding signature_prefix signature_format
-    signature_key timestamp_key signed_payload_template timestamp_header signing_secrets
+    signature_preset signature_algorithm signature_encoding signature_prefix signature_format
+    signature_key timestamp_key signed_payload_template signing_secrets
   ].freeze
 
   # Every signature setting; all of them are cleared when verification is turned off.
-  SIGNATURE_SETTINGS = (OPTIONAL_SIGNATURE_SETTINGS - %i[signature_preset] + %i[timestamp_tolerance]).freeze
+  SIGNATURE_SETTINGS = (
+    OPTIONAL_SIGNATURE_SETTINGS - %i[signature_preset] + SIGNATURE_HEADER_SETTINGS + %i[timestamp_tolerance]
+  ).freeze
 
   normalizes :slug, with: ->(slug) { slug.to_s.strip.downcase.gsub(/[\s_]+/, "-") }
 
   normalizes(*OPTIONAL_SIGNATURE_SETTINGS, with: ->(value) { value.presence })
+  normalizes(*SIGNATURE_HEADER_SETTINGS, with: ->(value) { value.strip.presence })
 
   before_validation :derive_slug_from_name, if: -> { slug.blank? && name.present? }
   before_validation :apply_signature_preset
@@ -46,6 +55,8 @@ class Endpoint < ApplicationRecord
     validates :verifier, inclusion: { in: VERIFIERS }
     validates :signature_preset, inclusion: { in: SignatureVerifier::PRESETS.keys }
     validates :signature_header, presence: true
+    validates(*SIGNATURE_HEADER_SETTINGS, format: { with: HEADER_NAME_FORMAT, message: "may only contain letters, digits and dashes" },
+      allow_nil: true)
     validates :signature_algorithm, inclusion: { in: SignatureVerifier::ALGORITHMS }
     validates :signature_encoding, inclusion: { in: SignatureVerifier::ENCODINGS }
     validates :signature_format, inclusion: { in: SignatureVerifier::FORMATS }
@@ -142,7 +153,7 @@ class Endpoint < ApplicationRecord
   def signed_payload_template_valid
     return unless signed_payload_template.to_s.gsub(SignatureVerifier::PLACEHOLDER, "").match?(/[{}]/)
 
-    errors.add(:signed_payload_template, "may only use {body}, {timestamp} and {header:Name}")
+    errors.add(:signed_payload_template, "may only use {body}, {timestamp} and {header:Name} (letters, digits and dashes)")
   end
 
   # Adds an error when a timestamp is signed or checked but no header or key carries it.

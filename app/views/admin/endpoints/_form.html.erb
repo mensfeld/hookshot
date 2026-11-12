@@ -59,7 +59,7 @@
       <label class="form-control">
         <span class="label-text text-xs uppercase tracking-wide mb-1">Secrets</span>
         <%= f.text_area :signing_secrets, rows: 2, class: "textarea textarea-bordered w-full font-mono", autocomplete: "off",
-            placeholder: "One per line; any of them may sign" %>
+            placeholder: "One per line, spaces around it removed; any of them may sign" %>
         <span class="text-xs text-base-content/60 mt-1">Add the new secret on its own line before rotating it at the sender, then remove the old one.</span>
       </label>
     </div>

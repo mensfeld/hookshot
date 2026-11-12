@@ -245,7 +245,38 @@ RSpec.describe Endpoint do
         signed_payload_template: "{body}.{nonce}")
 
       expect(endpoint).not_to be_valid
-      expect(endpoint.errors[:signed_payload_template]).to include("may only use {body}, {timestamp} and {header:Name}")
+      expect(endpoint.errors[:signed_payload_template]).to include("may only use {body}, {timestamp} and {header:Name} (letters, digits and dashes)")
+    end
+
+    it "rejects a template header name Rails cannot look up" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signed_payload_template: "{header:X_Delivery}.{body}")
+
+      expect(endpoint).not_to be_valid
+    end
+
+    it "strips spaces around the signature and timestamp header names" do
+      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: " X-Signature ",
+        timestamp_header: "X-T \n", timestamp_tolerance: 60)
+
+      expect(endpoint).to have_attributes(signature_header: "X-Signature", timestamp_header: "X-T")
+    end
+
+    [ "X_Signature", "X:Signature", "X Signature" ].each do |name|
+      it "rejects the signature header name #{name.inspect}" do
+        endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: name)
+
+        expect(endpoint).not_to be_valid
+        expect(endpoint.errors[:signature_header]).to include("may only contain letters, digits and dashes")
+      end
+
+      it "rejects the timestamp header name #{name.inspect}" do
+        endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+          timestamp_header: name, timestamp_tolerance: 60)
+
+        expect(endpoint).not_to be_valid
+        expect(endpoint.errors[:timestamp_header]).to include("may only contain letters, digits and dashes")
+      end
     end
 
     it "rejects an unmatched brace in the signed-content template" do

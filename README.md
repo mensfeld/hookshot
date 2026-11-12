@@ -194,7 +194,7 @@ request, as before.
   `401 {"error":"Invalid signature"}`. Nothing is stored or forwarded. The endpoint page and list show how many
   requests were rejected and when the last one was.
 - **Raw body:** the signature is computed over the body bytes exactly as received and compared in constant time.
-- **Secret rotation:** enter one secret per line. A request signed with any of them is accepted, so add the new
+- **Secret rotation:** enter one secret per line; spaces around each line are removed. A request signed with any of them is accepted, so add the new
   secret, switch the sender over, then remove the old one.
 - **Turning it off:** choosing "None" removes the endpoint's secrets and signature settings.
 
@@ -246,7 +246,7 @@ curl -X POST https://hookshot.example.com/webhooks/receive/shopify \
 
 | Setting | Values |
 |---------|--------|
-| Signature header | any header name |
+| Signature header | any header name (letters, digits and dashes) |
 | Algorithm | SHA-1, SHA-256 (default), SHA-512 |
 | Encoding | hex (any letter case) or base64 |
 | Prefix to strip | e.g. `sha256=`; empty for none |
@@ -324,7 +324,7 @@ whitespace is stripped.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/webhooks/receive` | None | Receive incoming webhooks on the default endpoint |
+| POST | `/webhooks/receive` | None (or the endpoint's signature) | Receive incoming webhooks on the default endpoint |
 | POST | `/webhooks/receive/:slug` | None (or the endpoint's signature) | Receive incoming webhooks on a named endpoint |
 | GET | `/health` | None | Health check endpoint |
 | GET | `/admin/*` | Basic | Admin dashboard |

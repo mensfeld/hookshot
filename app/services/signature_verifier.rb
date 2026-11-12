@@ -15,7 +15,7 @@ class SignatureVerifier
   FORMATS = %w[plain key_value].freeze
 
   # Placeholders allowed in the signed-content template.
-  PLACEHOLDER = /\{(?:body|timestamp|header:[^{}]+)\}/
+  PLACEHOLDER = /\{(?:body|timestamp|header:[A-Za-z0-9-]+)\}/
 
   # Settings each preset assigns to an endpoint; "generic" keeps the settings entered by hand.
   PRESETS = {
@@ -81,7 +81,7 @@ class SignatureVerifier
 
   # Splits the signature header into the signatures it carries and, for a key=value list, its timestamp.
   # @param header [String] the signature header value
-  # @return [Array(Array<String>, String)] signatures without the prefix, and the timestamp (nil when absent)
+  # @return [Array(Array<String>, (String, nil))] signatures without the prefix, and the timestamp (nil when absent)
   def parse_signature_header(header)
     return [ [ normalize(header) ], nil ] if @endpoint.signature_format == "plain"
 

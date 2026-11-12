@@ -101,6 +101,15 @@ RSpec.describe SignatureVerifier do
       end
     end
 
+    it "rejects a timestamp further in the future than the tolerance" do
+      travel_to(Time.current) do
+        ahead = Time.current.to_i + 301
+        headers = { "X-Slack-Request-Timestamp" => ahead.to_s, "X-Slack-Signature" => "v0=#{hmac("v0:#{ahead}:".b + body)}" }
+
+        expect(verifier.verified?(request_with(headers))).to be(false)
+      end
+    end
+
     it "rejects a replayed request older than the tolerance" do
       old = now - 600
       headers = { "X-Slack-Request-Timestamp" => old.to_s, "X-Slack-Signature" => "v0=#{hmac("v0:#{old}:".b + body)}" }
@@ -151,6 +160,13 @@ RSpec.describe SignatureVerifier do
       endpoint.update!(signature_algorithm: "sha1", signed_payload_template: "{body}")
 
       expect(verifier.verified?(request_with("X-Signature" => hmac(body, secret, "sha1")))).to be(true)
+    end
+
+    it "verifies a request whose header names were entered with surrounding spaces" do
+      endpoint.update!(signature_header: " X-Signature ", signed_payload_template: "{body}", timestamp_header: "X-T ",
+        timestamp_tolerance: 60)
+
+      expect(verifier.verified?(request_with("X-Signature" => hmac(body, secret, "sha512"), "X-T" => now.to_s))).to be(true)
     end
 
     it "checks a timestamp header against the tolerance without signing it" do
