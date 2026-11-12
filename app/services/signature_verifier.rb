@@ -74,13 +74,13 @@ class SignatureVerifier
   # @param header [String] the signature header value
   # @return [Array(Array<String>, String)] signatures without the prefix, and the timestamp (nil when absent)
   def parse_signature_header(header)
-    return [[normalize(header)], nil] if @endpoint.signature_format == "plain"
+    return [ [ normalize(header) ], nil ] if @endpoint.signature_format == "plain"
 
     pairs = header.split(",").map { |pair| pair.split("=", 2).map(&:strip) }
     signatures = pairs.filter_map { |key, value| normalize(value) if key == @endpoint.signature_key && value.present? }
     timestamp = pairs.find { |key, _| key == @endpoint.timestamp_key }&.last if @endpoint.timestamp_key.present?
 
-    [signatures, timestamp]
+    [ signatures, timestamp ]
   end
 
   # Strips the prefix and, for hex, the letter case from a signature, so it compares with the computed one.
@@ -127,6 +127,6 @@ class SignatureVerifier
   # @param digest [String] the raw HMAC digest
   # @return [String] the digest as lowercase hex or strict base64
   def encode(digest)
-    @endpoint.signature_encoding == "hex" ? digest.unpack1("H*") : [digest].pack("m0")
+    @endpoint.signature_encoding == "hex" ? digest.unpack1("H*") : [ digest ].pack("m0")
   end
 end

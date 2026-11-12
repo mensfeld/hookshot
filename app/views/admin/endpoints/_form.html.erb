@@ -64,7 +64,7 @@
       </label>
     </div>
 
-    <details class="mt-4" <%= "open" if @endpoint.signature_preset == "generic" %>>
+    <%= tag.details class: "mt-4", open: @endpoint.signature_preset == "generic" do %>
       <summary class="cursor-pointer text-sm font-medium">Generic HMAC settings</summary>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
         <label class="form-control">
@@ -121,7 +121,7 @@
           <%= f.number_field :timestamp_tolerance, min: 1, class: "input input-bordered w-full", placeholder: "No replay check" %>
         </label>
       </div>
-    </details>
+    <% end %>
   </div>
 
   <div class="border-t border-base-300 pt-6">

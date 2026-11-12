@@ -88,7 +88,7 @@ class Endpoint < ApplicationRecord
   # @return [void]
   def record_verification_failure!
     self.class.where(id: id).update_all(
-      ["verification_failures_count = verification_failures_count + 1, last_verification_failed_at = ?", Time.current]
+      [ "verification_failures_count = verification_failures_count + 1, last_verification_failed_at = ?", Time.current ]
     )
   end
 

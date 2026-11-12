@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe Endpoint do
+  include ActiveSupport::Testing::TimeHelpers
+
   describe "associations" do
     it { is_expected.to have_many(:endpoint_targets).dependent(:destroy) }
     it { is_expected.to have_many(:targets).through(:endpoint_targets) }
@@ -158,6 +160,103 @@ RSpec.describe Endpoint do
     it "report nothing for an endpoint that never received a webhook" do
       expect(endpoint.webhooks_count_24h).to eq(0)
       expect(endpoint.last_received_at).to be_nil
+    end
+  end
+
+  describe "signature verification settings" do
+    it "verifies nothing without a preset" do
+      endpoint = create(:endpoint, signature_preset: "")
+
+      expect(endpoint).to have_attributes(verifier: nil, signature_preset: nil, verifies_signatures?: false)
+    end
+
+    it "fills in a named preset's settings and clears the ones it does not use" do
+      endpoint = create(:endpoint, signature_preset: "github", signing_secrets: "x", signature_header: "X-Other",
+        signature_encoding: "base64", timestamp_header: "X-Timestamp", timestamp_tolerance: 5)
+
+      expect(endpoint).to have_attributes(
+        verifier: "hmac", signature_header: "X-Hub-Signature-256", signature_encoding: "hex", signature_prefix: "sha256=",
+        timestamp_header: nil, timestamp_tolerance: nil
+      )
+    end
+
+    it "keeps the entered settings for Generic HMAC" do
+      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signature_algorithm: "sha512", signature_encoding: "base64", signature_prefix: "")
+
+      expect(endpoint).to have_attributes(verifier: "hmac", signature_header: "X-Sig", signature_algorithm: "sha512",
+        signature_encoding: "base64", signature_prefix: nil)
+    end
+
+    it "requires a secret" do
+      endpoint = build(:endpoint, signature_preset: "github", signing_secrets: " \n ")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:signing_secrets]).to include("must contain at least one secret")
+    end
+
+    it "lists one secret per non-blank line" do
+      expect(build(:endpoint, signing_secrets: "a\r\n\n b \n").signing_secrets_list).to eq(%w[a b])
+    end
+
+    it "rejects an unknown preset, algorithm, encoding or format" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signature_algorithm: "md5", signature_encoding: "base32", signature_format: "json")
+      endpoint.validate
+
+      expect(endpoint.errors.attribute_names).to include(:signature_algorithm, :signature_encoding, :signature_format)
+      expect(build(:endpoint, signature_preset: "acme", signing_secrets: "x")).not_to be_valid
+    end
+
+    it "requires the signature header and, for a key=value list, the signature key" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_format: "key_value")
+      endpoint.validate
+
+      expect(endpoint.errors[:signature_header]).to include("can't be blank")
+      expect(endpoint.errors[:signature_key]).to include("is required for a key=value signature header")
+    end
+
+    it "rejects unknown placeholders in the signed-content template" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signed_payload_template: "{body}.{nonce}")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:signed_payload_template]).to include("may only use {body}, {timestamp} and {header:Name}")
+    end
+
+    it "rejects a blank signed-content template" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signed_payload_template: "")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:signed_payload_template]).to include("can't be blank")
+    end
+
+    it "requires a timestamp source when the template signs a timestamp or a tolerance is set" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        timestamp_tolerance: 60)
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:timestamp_header]).to be_present
+
+      endpoint.timestamp_header = "X-Timestamp"
+      expect(endpoint).to be_valid
+    end
+
+    it "rejects a tolerance that is not a positive whole number" do
+      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        timestamp_header: "X-Timestamp", timestamp_tolerance: 0)
+      expect(endpoint).not_to be_valid
+    end
+
+    it "counts verification failures" do
+      endpoint = create(:endpoint)
+
+      freeze_time do
+        2.times { endpoint.record_verification_failure! }
+
+        expect(endpoint.reload).to have_attributes(verification_failures_count: 2, last_verification_failed_at: Time.current)
+      end
     end
   end
 end

@@ -444,4 +444,43 @@ RSpec.describe "POST /webhooks/receive" do
       expect(Webhook.last.endpoint).to be_default
     end
   end
+
+  describe "signature verification" do
+    let(:payload) { { action: "opened" }.to_json }
+    let!(:endpoint) { create(:endpoint, slug: "github", signature_preset: "github", signing_secrets: "s3cret") }
+    let(:signature) { "sha256=#{OpenSSL::HMAC.hexdigest('sha256', 's3cret', payload)}" }
+
+    def deliver(signature_header)
+      headers = { "CONTENT_TYPE" => "application/json" }
+      headers["X-Hub-Signature-256"] = signature_header if signature_header
+      post "/webhooks/receive/github", params: payload, headers: headers
+    end
+
+    it "stores and routes a correctly signed webhook" do
+      expect { deliver(signature) }.to change(Webhook, :count).by(1)
+
+      expect(response).to have_http_status(:ok)
+      expect(RouteWebhookJob).to have_been_enqueued.with(Webhook.last.id)
+      expect(endpoint.reload.verification_failures_count).to eq(0)
+    end
+
+    [ [ "a wrong", "sha256=#{'0' * 64}" ], [ "a missing", nil ] ].each do |label, header|
+      it "answers 401 to #{label} signature, stores nothing and counts the failure" do
+        expect { deliver(header) }.not_to change(Webhook, :count)
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body).to eq("error" => "Invalid signature")
+        expect(RouteWebhookJob).not_to have_been_enqueued
+        expect(endpoint.reload).to have_attributes(verification_failures_count: 1, last_verification_failed_at: be_present)
+      end
+    end
+
+    it "keeps accepting unsigned webhooks on endpoints without verification" do
+      expect {
+        post "/webhooks/receive", params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+      }.to change(Webhook, :count).by(1)
+
+      expect(response).to have_http_status(:ok)
+    end
+  end
 end
