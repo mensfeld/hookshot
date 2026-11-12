@@ -20,12 +20,12 @@ RSpec.describe SignatureVerifier do
     OpenSSL::HMAC.hexdigest(algorithm, key, content)
   end
 
-  def build_endpoint(preset, **settings)
+  def create_endpoint(preset, **settings)
     create(:endpoint, signature_preset: preset, signing_secrets: secret, **settings)
   end
 
   describe "GitHub preset" do
-    let(:endpoint) { build_endpoint("github") }
+    let(:endpoint) { create_endpoint("github") }
 
     it "accepts a signature over the raw body bytes" do
       expect(verifier.verified?(request_with("X-Hub-Signature-256" => "sha256=#{hmac(body)}"))).to be(true)
@@ -49,7 +49,7 @@ RSpec.describe SignatureVerifier do
   end
 
   describe "Stripe preset" do
-    let(:endpoint) { build_endpoint("stripe") }
+    let(:endpoint) { create_endpoint("stripe") }
 
     def stripe_header(timestamp, *signatures)
       ([ "t=#{timestamp}" ] + signatures.map { |signature| "v1=#{signature}" }).join(",")
@@ -84,7 +84,7 @@ RSpec.describe SignatureVerifier do
   end
 
   describe "Slack preset" do
-    let(:endpoint) { build_endpoint("slack") }
+    let(:endpoint) { create_endpoint("slack") }
 
     it "accepts a v0 signature over v0:{timestamp}:{body}" do
       headers = { "X-Slack-Request-Timestamp" => now.to_s, "X-Slack-Signature" => "v0=#{hmac("v0:#{now}:".b + body)}" }
@@ -125,7 +125,7 @@ RSpec.describe SignatureVerifier do
   end
 
   describe "Shopify preset" do
-    let(:endpoint) { build_endpoint("shopify") }
+    let(:endpoint) { create_endpoint("shopify") }
 
     it "accepts a base64 signature over the body" do
       signature = [ OpenSSL::HMAC.digest("sha256", secret, body) ].pack("m0")
@@ -140,7 +140,7 @@ RSpec.describe SignatureVerifier do
 
   describe "Generic HMAC" do
     let(:endpoint) do
-      build_endpoint(
+      create_endpoint(
         "generic", signature_header: "X-Signature", signature_algorithm: "sha512", signature_encoding: "hex",
         signed_payload_template: "{header:X-Delivery}|{body}"
       )
@@ -180,7 +180,7 @@ RSpec.describe SignatureVerifier do
   end
 
   describe "secret rotation" do
-    let(:endpoint) { build_endpoint("github", signing_secrets: "new-secret\n  old-secret  \n\n") }
+    let(:endpoint) { create_endpoint("github", signing_secrets: "new-secret\n  old-secret  \n\n") }
 
     it "accepts a signature made with any configured secret" do
       %w[new-secret old-secret].each do |key|

@@ -21,11 +21,11 @@ class Endpoint < ApplicationRecord
   # Verifier types an endpoint can use; nil verifies nothing.
   VERIFIERS = %w[hmac].freeze
 
-  # Signature settings naming a request header; Rails finds a header only by a name of letters, digits and dashes.
+  # Signature settings naming a request header.
   SIGNATURE_HEADER_SETTINGS = %i[signature_header timestamp_header].freeze
 
-  # Allowed request header name.
-  HEADER_NAME_FORMAT = /\A[A-Za-z0-9-]+\z/
+  # Allowed request header name (see SignatureVerifier::HEADER_NAME).
+  HEADER_NAME_FORMAT = /\A#{SignatureVerifier::HEADER_NAME.source}\z/
 
   # Signature settings stored as nil instead of an empty string.
   OPTIONAL_SIGNATURE_SETTINGS = %i[

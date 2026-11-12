@@ -14,8 +14,14 @@ class SignatureVerifier
   # Supported signature header formats: a single value, or a comma-separated key=value list (Stripe).
   FORMATS = %w[plain key_value].freeze
 
+  # Request header name: Rails finds a header only by a name of letters, digits and dashes.
+  HEADER_NAME = /[A-Za-z0-9-]+/
+
   # Placeholders allowed in the signed-content template.
-  PLACEHOLDER = /\{(?:body|timestamp|header:[A-Za-z0-9-]+)\}/
+  PLACEHOLDER = /\{(?:body|timestamp|header:#{HEADER_NAME.source})\}/
+
+  # Splits a signed-content template into its placeholders and the literal text between them.
+  TEMPLATE_PARTS = /(#{PLACEHOLDER.source})/
 
   # Settings each preset assigns to an endpoint; "generic" keeps the settings entered by hand.
   PRESETS = {
@@ -118,7 +124,7 @@ class SignatureVerifier
   # @param timestamp [String, nil] the request timestamp
   # @return [Array<String>, nil] the parts to sign, or nil when a header the template names is missing
   def signed_parts(request, timestamp)
-    @endpoint.signed_payload_template.split(/(#{PLACEHOLDER})/o).map do |part|
+    @endpoint.signed_payload_template.split(TEMPLATE_PARTS).map do |part|
       value =
         case part
         when "{body}" then request.raw_post

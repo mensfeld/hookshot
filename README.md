@@ -194,8 +194,8 @@ request, as before.
   `401 {"error":"Invalid signature"}`. Nothing is stored or forwarded. The endpoint page and list show how many
   requests were rejected and when the last one was.
 - **Raw body:** the signature is computed over the body bytes exactly as received and compared in constant time.
-- **Secret rotation:** enter one secret per line; spaces around each line are removed. A request signed with any of them is accepted, so add the new
-  secret, switch the sender over, then remove the old one.
+- **Secret rotation:** enter one secret per line; spaces around each line are removed. A request signed with any of
+  them is accepted, so add the new secret, switch the sender over, then remove the old one.
 - **Turning it off:** choosing "None" removes the endpoint's secrets and signature settings.
 
 | Preset | Header | Signed content | Signature | Replay window |
@@ -304,7 +304,8 @@ collapsed to a one-line summary, and the collapsed state is remembered per targe
 Targets whose filters all stay in the `default` group behave as a plain AND of every filter. Once more groups exist,
 `default` is just another alternative: there is no condition shared by all groups, so repeat common checks in every
 group. A filter on a signature header only checks that the header is there, which anyone can fake: use the endpoint's
-[signature verification](#signature-verification) instead. A group that only partially matches never causes delivery on its own.
+[signature verification](#signature-verification) instead. A group that only partially matches never causes delivery
+on its own.
 
 **Example**: forward only actionable GitHub events to one endpoint:
 
