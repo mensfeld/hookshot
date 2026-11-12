@@ -3,6 +3,11 @@
   "extends": [
     "config:recommended"
   ],
+  "bundler": {
+    "managerFilePatterns": [
+      "/(^|/)Gemfile\\.lint$/"
+    ]
+  },
   "includePaths": [
     ".ruby-version",
     "Gemfile",
