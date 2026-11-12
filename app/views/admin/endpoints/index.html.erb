@@ -19,6 +19,12 @@
             <% unless endpoint.active? %>
               <span class="badge badge-sm badge-ghost">inactive</span>
             <% end %>
+            <% if endpoint.verifies_signatures? %>
+              <span class="badge badge-sm badge-success badge-outline" title="Signature verification"><%= signature_preset_label(endpoint) %> signature</span>
+            <% end %>
+            <% if endpoint.verification_failures_count.positive? %>
+              <span class="badge badge-sm badge-error badge-outline"><%= pluralize(endpoint.verification_failures_count, "rejected signature") %></span>
+            <% end %>
           </div>
           <div class="mt-1"><%= render "receive_url", endpoint: endpoint %></div>
         </div>

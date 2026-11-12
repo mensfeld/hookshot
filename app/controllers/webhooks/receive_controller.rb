@@ -12,7 +12,8 @@ module Webhooks
     MAX_PAYLOAD_SIZE = Hookshot::Settings.max_payload_size
 
     # Receives and processes an incoming webhook.
-    # @return [void] responds with 200 OK on success, 404 for an unknown or inactive endpoint
+    # @return [void] responds with 200 OK on success, 404 for an unknown or inactive endpoint, 401 for a missing or
+    #   invalid signature on an endpoint that verifies signatures
     def create
       if request.raw_post.bytesize > MAX_PAYLOAD_SIZE
         render json: { error: "Payload too large" }, status: :payload_too_large
@@ -22,6 +23,12 @@ module Webhooks
       endpoint = find_endpoint
       unless endpoint
         render json: { error: "Unknown endpoint" }, status: :not_found
+        return
+      end
+
+      if endpoint.verifies_signatures? && !SignatureVerifier.new(endpoint).verified?(request)
+        endpoint.record_verification_failure!
+        render json: { error: "Invalid signature" }, status: :unauthorized
         return
       end
 

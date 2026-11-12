@@ -70,7 +70,11 @@ module Admin
     # Permits endpoint parameters.
     # @return [ActionController::Parameters] permitted parameters
     def endpoint_params
-      params.require(:endpoint).permit(:name, :slug, :description, :active, target_ids: [])
+      params.require(:endpoint).permit(
+        :name, :slug, :description, :active, :signature_preset, :signing_secrets, :signature_header,
+        :signature_algorithm, :signature_encoding, :signature_prefix, :signature_format, :signature_key, :timestamp_key,
+        :signed_payload_template, :timestamp_header, :timestamp_tolerance, target_ids: []
+      )
     end
   end
 end

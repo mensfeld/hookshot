@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_160000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -49,6 +49,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_090000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "verifier"
+    t.string "signature_preset"
+    t.string "signature_header"
+    t.string "signature_algorithm", default: "sha256", null: false
+    t.string "signature_encoding", default: "hex", null: false
+    t.string "signature_prefix"
+    t.string "signature_format", default: "plain", null: false
+    t.string "signature_key"
+    t.string "timestamp_key"
+    t.string "signed_payload_template", default: "{body}", null: false
+    t.string "timestamp_header"
+    t.integer "timestamp_tolerance"
+    t.text "signing_secrets"
+    t.integer "verification_failures_count", default: 0, null: false
+    t.datetime "last_verification_failed_at"
     t.index ["slug"], name: "index_endpoints_on_slug", unique: true
   end
 

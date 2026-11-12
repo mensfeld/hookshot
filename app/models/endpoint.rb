@@ -3,6 +3,7 @@
 # A named inbound URL that receives webhooks (+POST /webhooks/receive/:slug+). Each endpoint forwards what it receives
 # only to the targets attached to it, so a single sender can route different actions by posting to different URLs.
 # The default endpoint backs the plain +POST /webhooks/receive+ URL; it can be deactivated but not removed or renamed.
+# An endpoint with a verifier rejects requests whose signature does not match one of its secrets.
 class Endpoint < ApplicationRecord
   # Slug of the endpoint behind the plain /webhooks/receive URL.
   DEFAULT_SLUG = "default"
@@ -17,14 +18,40 @@ class Endpoint < ApplicationRecord
   has_many :targets, through: :endpoint_targets
   has_many :webhooks, dependent: :nullify
 
+  # Verifier types an endpoint can use; nil verifies nothing.
+  VERIFIERS = %w[hmac].freeze
+
+  # Optional settings stored as nil instead of an empty string.
+  OPTIONAL_SIGNATURE_SETTINGS = %i[
+    signature_preset signature_header signature_prefix signature_key timestamp_key timestamp_header
+  ].freeze
+
   normalizes :slug, with: ->(slug) { slug.to_s.strip.downcase.gsub(/[\s_]+/, "-") }
 
+  normalizes(*OPTIONAL_SIGNATURE_SETTINGS, with: ->(value) { value.presence })
+
   before_validation :derive_slug_from_name, if: -> { slug.blank? && name.present? }
+  before_validation :apply_signature_preset
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true, length: { maximum: SLUG_MAX_LENGTH },
     format: { with: SLUG_FORMAT, message: "may only contain lowercase letters, digits and single dashes" }
   validate :default_slug_unchanged, on: :update
+
+  with_options if: :verifies_signatures? do
+    validates :verifier, inclusion: { in: VERIFIERS }
+    validates :signature_preset, inclusion: { in: SignatureVerifier::PRESETS.keys }
+    validates :signature_header, presence: true
+    validates :signature_algorithm, inclusion: { in: SignatureVerifier::ALGORITHMS }
+    validates :signature_encoding, inclusion: { in: SignatureVerifier::ENCODINGS }
+    validates :signature_format, inclusion: { in: SignatureVerifier::FORMATS }
+    validates :signature_key, presence: { message: "is required for a key=value signature header" },
+      if: -> { signature_format == "key_value" }
+    validates :timestamp_tolerance, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+    validate :signing_secrets_present
+    validate :signed_payload_template_valid
+    validate :timestamp_source_present
+  end
 
   before_destroy :prevent_default_destroy
 
@@ -45,6 +72,26 @@ class Endpoint < ApplicationRecord
     slug_in_database == DEFAULT_SLUG || (new_record? && slug == DEFAULT_SLUG)
   end
 
+  # Checks whether requests to this endpoint must carry a valid signature.
+  # @return [Boolean] true when a verifier is set
+  def verifies_signatures?
+    verifier.present?
+  end
+
+  # Returns the configured signing secrets; a request signed with any of them is accepted.
+  # @return [Array<String>] one secret per non-blank line of +signing_secrets+
+  def signing_secrets_list
+    signing_secrets.to_s.lines.map(&:strip).reject(&:empty?)
+  end
+
+  # Counts a rejected request without loading or locking the row.
+  # @return [void]
+  def record_verification_failure!
+    self.class.where(id: id).update_all(
+      ["verification_failures_count = verification_failures_count + 1, last_verification_failed_at = ?", Time.current]
+    )
+  end
+
   # Returns the number of webhooks received in the last 24 hours.
   # @return [Integer] count of recent webhooks
   def webhooks_count_24h
@@ -63,6 +110,38 @@ class Endpoint < ApplicationRecord
   # @return [void]
   def derive_slug_from_name
     self.slug = name.parameterize.first(SLUG_MAX_LENGTH).delete_suffix("-")
+  end
+
+  # Sets the verifier from the preset and fills in a named preset's settings; "generic" keeps the entered ones.
+  # @return [void]
+  def apply_signature_preset
+    self.verifier = signature_preset ? "hmac" : nil
+    settings = SignatureVerifier::PRESETS[signature_preset]
+    assign_attributes(SignatureVerifier::PRESET_RESETS.merge(settings)) if settings&.any?
+  end
+
+  # Adds an error when signature verification is on without a secret.
+  # @return [void]
+  def signing_secrets_present
+    errors.add(:signing_secrets, "must contain at least one secret") if signing_secrets_list.empty?
+  end
+
+  # Adds an error when the signed-content template contains an unknown placeholder.
+  # @return [void]
+  def signed_payload_template_valid
+    return errors.add(:signed_payload_template, "can't be blank") if signed_payload_template.blank?
+    return unless signed_payload_template.gsub(SignatureVerifier::PLACEHOLDER, "").match?(/[{}]/)
+
+    errors.add(:signed_payload_template, "may only use {body}, {timestamp} and {header:Name}")
+  end
+
+  # Adds an error when a timestamp is signed or checked but no header or key carries it.
+  # @return [void]
+  def timestamp_source_present
+    return unless timestamp_tolerance || signed_payload_template.to_s.include?("{timestamp}")
+    return if timestamp_header || (signature_format == "key_value" && timestamp_key)
+
+    errors.add(:timestamp_header, "is required when the template signs {timestamp} or a tolerance is set")
   end
 
   # Adds an error when the default endpoint's slug is changed.

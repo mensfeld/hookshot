@@ -38,6 +38,20 @@
       <div class="text-base-content/60 text-xs uppercase tracking-wide">Last received</div>
       <div><%= @endpoint.last_received_at&.strftime("%Y-%m-%d %H:%M:%S") || "Never" %></div>
     </div>
+    <div>
+      <div class="text-base-content/60 text-xs uppercase tracking-wide">Signature verification</div>
+      <div><%= signature_preset_label(@endpoint) || "None" %></div>
+    </div>
+    <% if @endpoint.verifies_signatures? || @endpoint.verification_failures_count.positive? %>
+      <div>
+        <div class="text-base-content/60 text-xs uppercase tracking-wide">Rejected signatures</div>
+        <div class="<%= 'text-error' if @endpoint.verification_failures_count.positive? %>"><%= @endpoint.verification_failures_count %></div>
+      </div>
+      <div>
+        <div class="text-base-content/60 text-xs uppercase tracking-wide">Last rejected</div>
+        <div><%= @endpoint.last_verification_failed_at&.strftime("%Y-%m-%d %H:%M:%S") || "Never" %></div>
+      </div>
+    <% end %>
   </div>
 </div>
 

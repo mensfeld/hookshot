@@ -44,6 +44,87 @@
   </div>
 
   <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-1">Signature verification</h3>
+    <p class="text-sm text-base-content/60 mb-3">
+      Requests without a valid signature are answered 401 and are neither stored nor forwarded.
+      A preset fills in the settings below; they apply as entered only with Generic HMAC.
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <label class="form-control">
+        <span class="label-text text-xs uppercase tracking-wide mb-1">Verification</span>
+        <%= f.select :signature_preset, EndpointsHelper::SIGNATURE_PRESET_LABELS.invert, { include_blank: "None (accept every request)" },
+            class: "select select-bordered w-full" %>
+      </label>
+
+      <label class="form-control">
+        <span class="label-text text-xs uppercase tracking-wide mb-1">Secrets</span>
+        <%= f.text_area :signing_secrets, rows: 2, class: "textarea textarea-bordered w-full font-mono", autocomplete: "off",
+            placeholder: "One per line; any of them may sign" %>
+        <span class="text-xs text-base-content/60 mt-1">Add the new secret on its own line before rotating it at the sender, then remove the old one.</span>
+      </label>
+    </div>
+
+    <details class="mt-4" <%= "open" if @endpoint.signature_preset == "generic" %>>
+      <summary class="cursor-pointer text-sm font-medium">Generic HMAC settings</summary>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Signature header</span>
+          <%= f.text_field :signature_header, class: "input input-bordered w-full font-mono", placeholder: "X-Signature" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Algorithm</span>
+          <%= f.select :signature_algorithm, SignatureVerifier::ALGORITHMS.map { |a| [a.upcase.sub("SHA", "SHA-"), a] }, {},
+              class: "select select-bordered w-full" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Encoding</span>
+          <%= f.select :signature_encoding, [["Hex", "hex"], ["Base64", "base64"]], {}, class: "select select-bordered w-full" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Prefix to strip</span>
+          <%= f.text_field :signature_prefix, class: "input input-bordered w-full font-mono", placeholder: "sha256=" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Header format</span>
+          <%= f.select :signature_format, [["Plain value", "plain"], ["key=value list (t=...,v1=...)", "key_value"]], {},
+              class: "select select-bordered w-full" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Signature key / timestamp key</span>
+          <span class="flex gap-2">
+            <%= f.text_field :signature_key, class: "input input-bordered w-full font-mono", placeholder: "v1" %>
+            <%= f.text_field :timestamp_key, class: "input input-bordered w-full font-mono", placeholder: "t" %>
+          </span>
+          <span class="text-xs text-base-content/60 mt-1">Only for a key=value list.</span>
+        </label>
+
+        <label class="form-control md:col-span-3">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Signed content</span>
+          <%= f.text_field :signed_payload_template, class: "input input-bordered w-full font-mono", placeholder: "{body}" %>
+          <span class="text-xs text-base-content/60 mt-1">
+            <code>{body}</code> is the raw body; <code>{timestamp}</code> and <code>{header:Name}</code> insert the timestamp or a header value.
+          </span>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Timestamp header</span>
+          <%= f.text_field :timestamp_header, class: "input input-bordered w-full font-mono", placeholder: "X-Timestamp" %>
+        </label>
+
+        <label class="form-control">
+          <span class="label-text text-xs uppercase tracking-wide mb-1">Timestamp tolerance (seconds)</span>
+          <%= f.number_field :timestamp_tolerance, min: 1, class: "input input-bordered w-full", placeholder: "No replay check" %>
+        </label>
+      </div>
+    </details>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-1">Forward to targets</h3>
     <p class="text-sm text-base-content/60 mb-3">Webhooks received here go to the selected targets, each still subject to its own filters.</p>
     <% targets = Target.order(:name) %>
