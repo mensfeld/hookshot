@@ -1,5 +1,8 @@
 # Hookshot changelog
 
+## 1.6.0 (Unreleased)
+- [Feature] Per-endpoint signature verification of inbound webhooks, with presets for GitHub, Stripe, Slack and Shopify and a Generic HMAC (any header, SHA-1/SHA-256/SHA-512, hex or base64, prefix to strip, a signed-content template with `{body}`, `{timestamp}` and `{header:Name}`, a plain or `key=value` signature header, and an optional timestamp with a replay tolerance). The signature is computed over the raw body bytes and compared in constant time; several secrets can be set at once to rotate one without downtime. A missing or wrong signature, or a timestamp outside the tolerance, answers 401 and is neither stored nor forwarded; the endpoint pages count rejected requests. Endpoints without verification accept every request as before. Run `bin/rails db:migrate`.
+
 ## 1.5.0 (2026-11-09)
 - [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply. The endpoint comes from the URL path only, never from the request body or query string.
 - [Feature] Admin pages to create, edit, deactivate and delete endpoints, showing each receive URL with a copy button, its targets and recent activity.
