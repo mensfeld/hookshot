@@ -40,6 +40,11 @@ class SignatureVerifier
     "generic" => {}
   }.freeze
 
+  # Values Generic HMAC uses for settings left blank.
+  GENERIC_DEFAULTS = {
+    signature_algorithm: "sha256", signature_encoding: "hex", signature_format: "plain", signed_payload_template: "{body}"
+  }.freeze
+
   # Settings a named preset clears unless it sets them.
   PRESET_RESETS = {
     signature_prefix: nil, signature_key: nil, timestamp_key: nil, timestamp_header: nil, timestamp_tolerance: nil
@@ -61,10 +66,14 @@ class SignatureVerifier
     timestamp = request.headers[@endpoint.timestamp_header] if @endpoint.timestamp_header.present?
     return false if signatures.empty? || !timestamp_valid?(timestamp)
 
-    payload = signed_payload(request, timestamp)
-    return false unless payload
+    parts = signed_parts(request, timestamp)
+    return false unless parts
 
-    expected = @endpoint.signing_secrets_list.map { |secret| encode(OpenSSL::HMAC.digest(@endpoint.signature_algorithm, secret, payload)) }
+    expected = @endpoint.signing_secrets_list.map do |secret|
+      hmac = OpenSSL::HMAC.new(secret, @endpoint.signature_algorithm)
+      parts.each { |part| hmac.update(part) }
+      encode(hmac.digest)
+    end
     expected.product(signatures).any? { |computed, given| ActiveSupport::SecurityUtils.secure_compare(computed, given) }
   end
 
@@ -104,11 +113,11 @@ class SignatureVerifier
     tolerance.nil? || (Time.current.to_i - timestamp.to_i).abs <= tolerance
   end
 
-  # Builds the signed content from the template, as bytes.
+  # Splits the signed content into the parts the HMAC is fed in order, so the body is never copied.
   # @param request [ActionDispatch::Request] the inbound webhook request
   # @param timestamp [String, nil] the request timestamp
-  # @return [String, nil] the content to sign, or nil when a header the template names is missing
-  def signed_payload(request, timestamp)
+  # @return [Array<String>, nil] the parts to sign, or nil when a header the template names is missing
+  def signed_parts(request, timestamp)
     @endpoint.signed_payload_template.split(/(#{PLACEHOLDER})/o).map do |part|
       value =
         case part
@@ -119,8 +128,8 @@ class SignatureVerifier
         end
       return nil if value.nil?
 
-      value.b
-    end.join.b
+      value
+    end
   end
 
   # Encodes a raw digest the way the endpoint's senders encode their signatures.

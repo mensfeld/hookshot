@@ -21,10 +21,14 @@ class Endpoint < ApplicationRecord
   # Verifier types an endpoint can use; nil verifies nothing.
   VERIFIERS = %w[hmac].freeze
 
-  # Optional settings stored as nil instead of an empty string.
+  # Signature settings stored as nil instead of an empty string.
   OPTIONAL_SIGNATURE_SETTINGS = %i[
-    signature_preset signature_header signature_prefix signature_key timestamp_key timestamp_header
+    signature_preset signature_header signature_algorithm signature_encoding signature_prefix signature_format
+    signature_key timestamp_key signed_payload_template timestamp_header signing_secrets
   ].freeze
+
+  # Every signature setting; all of them are cleared when verification is turned off.
+  SIGNATURE_SETTINGS = (OPTIONAL_SIGNATURE_SETTINGS - %i[signature_preset] + %i[timestamp_tolerance]).freeze
 
   normalizes :slug, with: ->(slug) { slug.to_s.strip.downcase.gsub(/[\s_]+/, "-") }
 
@@ -112,12 +116,19 @@ class Endpoint < ApplicationRecord
     self.slug = name.parameterize.first(SLUG_MAX_LENGTH).delete_suffix("-")
   end
 
-  # Sets the verifier from the preset and fills in a named preset's settings; "generic" keeps the entered ones.
+  # Sets the verifier from the preset and fills in a named preset's settings; "generic" keeps the entered ones and
+  # fills only the blank ones it needs. Without a preset every setting is cleared, so the row carries no strings.
   # @return [void]
   def apply_signature_preset
     self.verifier = signature_preset ? "hmac" : nil
+    return assign_attributes(SIGNATURE_SETTINGS.index_with(nil)) unless signature_preset
+
     settings = SignatureVerifier::PRESETS[signature_preset]
-    assign_attributes(SignatureVerifier::PRESET_RESETS.merge(settings)) if settings&.any?
+    if settings&.any?
+      assign_attributes(SignatureVerifier::PRESET_RESETS.merge(settings))
+    else
+      SignatureVerifier::GENERIC_DEFAULTS.each { |name, value| self[name] = value if self[name].blank? }
+    end
   end
 
   # Adds an error when signature verification is on without a secret.
@@ -129,8 +140,7 @@ class Endpoint < ApplicationRecord
   # Adds an error when the signed-content template contains an unknown placeholder.
   # @return [void]
   def signed_payload_template_valid
-    return errors.add(:signed_payload_template, "can't be blank") if signed_payload_template.blank?
-    return unless signed_payload_template.gsub(SignatureVerifier::PLACEHOLDER, "").match?(/[{}]/)
+    return unless signed_payload_template.to_s.gsub(SignatureVerifier::PLACEHOLDER, "").match?(/[{}]/)
 
     errors.add(:signed_payload_template, "may only use {body}, {timestamp} and {header:Name}")
   end

@@ -52,13 +52,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_160000) do
     t.string "verifier"
     t.string "signature_preset"
     t.string "signature_header"
-    t.string "signature_algorithm", default: "sha256", null: false
-    t.string "signature_encoding", default: "hex", null: false
+    t.string "signature_algorithm"
+    t.string "signature_encoding"
     t.string "signature_prefix"
-    t.string "signature_format", default: "plain", null: false
+    t.string "signature_format"
     t.string "signature_key"
     t.string "timestamp_key"
-    t.string "signed_payload_template", default: "{body}", null: false
+    t.string "signed_payload_template"
     t.string "timestamp_header"
     t.integer "timestamp_tolerance"
     t.text "signing_secrets"

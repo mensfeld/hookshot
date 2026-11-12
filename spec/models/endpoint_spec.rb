@@ -170,6 +170,30 @@ RSpec.describe Endpoint do
       expect(endpoint).to have_attributes(verifier: nil, signature_preset: nil, verifies_signatures?: false)
     end
 
+    it "stores no signature settings without a preset, so loading the endpoint allocates no extra strings" do
+      endpoint = create(:endpoint, signature_preset: "", signing_secrets: "x", signature_algorithm: "sha512",
+        signature_encoding: "hex", signature_format: "plain", signed_payload_template: "{body}", timestamp_tolerance: 60)
+
+      values = endpoint.reload.attributes.values_at(*Endpoint::SIGNATURE_SETTINGS.map(&:to_s))
+      expect(values).to all(be_nil)
+    end
+
+    it "clears the settings when verification is turned off" do
+      endpoint = create(:endpoint, signature_preset: "stripe", signing_secrets: "x")
+
+      endpoint.update!(signature_preset: "")
+
+      expect(endpoint.reload).to have_attributes(signing_secrets: nil, signature_header: nil, signed_payload_template: nil)
+    end
+
+    it "fills blank Generic HMAC settings with SHA-256, hex, a plain header and {body}" do
+      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
+        signature_algorithm: "", signed_payload_template: "")
+
+      expect(endpoint).to have_attributes(signature_algorithm: "sha256", signature_encoding: "hex",
+        signature_format: "plain", signed_payload_template: "{body}")
+    end
+
     it "fills in a named preset's settings and clears the ones it does not use" do
       endpoint = create(:endpoint, signature_preset: "github", signing_secrets: "x", signature_header: "X-Other",
         signature_encoding: "base64", timestamp_header: "X-Timestamp", timestamp_tolerance: 5)
@@ -224,12 +248,11 @@ RSpec.describe Endpoint do
       expect(endpoint.errors[:signed_payload_template]).to include("may only use {body}, {timestamp} and {header:Name}")
     end
 
-    it "rejects a blank signed-content template" do
+    it "rejects an unmatched brace in the signed-content template" do
       endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signed_payload_template: "")
+        signed_payload_template: "{")
 
       expect(endpoint).not_to be_valid
-      expect(endpoint.errors[:signed_payload_template]).to include("can't be blank")
     end
 
     it "requires a timestamp source when the template signs a timestamp or a tolerance is set" do

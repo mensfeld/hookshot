@@ -74,7 +74,8 @@
 
         <label class="form-control">
           <span class="label-text text-xs uppercase tracking-wide mb-1">Algorithm</span>
-          <%= f.select :signature_algorithm, SignatureVerifier::ALGORITHMS.map { |a| [a.upcase.sub("SHA", "SHA-"), a] }, {},
+          <%= f.select :signature_algorithm, SignatureVerifier::ALGORITHMS.map { |a| [a.upcase.sub("SHA", "SHA-"), a] },
+              { selected: @endpoint.signature_algorithm || SignatureVerifier::GENERIC_DEFAULTS[:signature_algorithm] },
               class: "select select-bordered w-full" %>
         </label>
 
