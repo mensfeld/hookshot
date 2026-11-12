@@ -196,6 +196,7 @@ request, as before.
 - **Raw body:** the signature is computed over the body bytes exactly as received and compared in constant time.
 - **Secret rotation:** enter one secret per line. A request signed with any of them is accepted, so add the new
   secret, switch the sender over, then remove the old one.
+- **Turning it off:** choosing "None" removes the endpoint's secrets and signature settings.
 
 | Preset | Header | Signed content | Signature | Replay window |
 |--------|--------|----------------|-----------|---------------|
@@ -246,7 +247,7 @@ curl -X POST https://hookshot.example.com/webhooks/receive/shopify \
 | Setting | Values |
 |---------|--------|
 | Signature header | any header name |
-| Algorithm | SHA-1, SHA-256, SHA-512 |
+| Algorithm | SHA-1, SHA-256 (default), SHA-512 |
 | Encoding | hex (any letter case) or base64 |
 | Prefix to strip | e.g. `sha256=`; empty for none |
 | Header format | a plain value, or a `key=value` list (`t=...,v1=...`) with the signature key and an optional timestamp key |
