@@ -34,7 +34,7 @@ Then:
 
 - **Webhook Reception**: Accepts POST requests at `/webhooks/receive` and stores headers, payload, and metadata
 - **Endpoints**: Named inbound URLs (`/webhooks/receive/<slug>`) that each forward only to their own targets
-- **Signature Verification**: Per-endpoint HMAC checks (GitHub, Stripe, Slack, Shopify or custom), so forged webhooks are never stored or forwarded
+- **Signature Verification**: Pluggable per-endpoint providers (GitHub built in) reject forged webhooks
 - **Multiple Targets**: Configure multiple destination URLs for webhook delivery
 - **Filtering**: Route webhooks to specific targets based on header or payload content
 - **Background Processing**: Reliable delivery with Solid Queue, including retries with exponential backoff
@@ -186,27 +186,21 @@ payloads by posting them to different URLs:
 
 ### Signature Verification
 
-Each endpoint can check the HMAC signature senders put on their webhooks. Pick a preset under **Signature
-verification** in the endpoint form and enter the signing secret. An endpoint without verification accepts every
-request, as before.
+Each endpoint can check the signature senders put on their webhooks. Pick a provider under **Signature verification**
+in the endpoint form and enter the signing secret. An endpoint without a provider accepts every request, as before.
+Hookshot ships the GitHub provider; you can add your own (see [Custom providers](#custom-providers)).
 
-- **Rejected requests:** a missing or wrong signature, or a timestamp outside the tolerance, answers
-  `401 {"error":"Invalid signature"}`. Nothing is stored or forwarded. The endpoint page and list show how many
-  requests were rejected and when the last one was.
-- **Raw body:** the signature is computed over the body bytes exactly as received and compared in constant time.
+- **Rejected requests:** a missing or wrong signature answers `401 {"error":"Invalid signature"}`. Nothing is stored
+  or forwarded. The endpoint page and list show how many requests were rejected and when the last one was.
+- **Raw body:** providers check the body bytes exactly as received.
 - **Secret rotation:** enter one secret per line; spaces around each line are removed. A request signed with any of
   them is accepted, so add the new secret, switch the sender over, then remove the old one.
-- **Turning it off:** choosing "None" removes the endpoint's secrets and signature settings.
+- **Turning it off:** choosing "None" removes the endpoint's secrets.
+- **Removed provider:** an endpoint whose provider is no longer registered rejects every request until you pick
+  another one.
 
-| Preset | Header | Signed content | Signature | Replay window |
-|--------|--------|----------------|-----------|---------------|
-| GitHub | `X-Hub-Signature-256` | `{body}` | `sha256=` + hex HMAC-SHA256 | none |
-| Stripe | `Stripe-Signature` | `{timestamp}.{body}` | `t=<timestamp>,v1=<hex HMAC-SHA256>` | 300 s |
-| Slack | `X-Slack-Signature` + `X-Slack-Request-Timestamp` | `v0:{timestamp}:{body}` | `v0=` + hex HMAC-SHA256 | 300 s |
-| Shopify | `X-Shopify-Hmac-Sha256` | `{body}` | base64 HMAC-SHA256 | none |
-| Generic HMAC | any | any template | your settings | optional |
-
-**GitHub:** create the endpoint with the GitHub preset and the webhook's secret, and point the GitHub webhook at
+**GitHub:** `X-Hub-Signature-256` carries `sha256=` and the hex HMAC-SHA256 of the body. Create the endpoint with the
+GitHub provider and the webhook's secret, and point the GitHub webhook at
 `https://hookshot.example.com/webhooks/receive/<slug>`. To test it by hand:
 
 ```bash
@@ -216,47 +210,49 @@ curl -X POST https://hookshot.example.com/webhooks/receive/github \
   -H "Content-Type: application/json" -H "X-Hub-Signature-256: sha256=$sig" -d "$body"
 ```
 
-**Stripe:** use the endpoint's signing secret (`whsec_...`) as is. Stripe can send several `v1=` signatures
-while you roll its secret; any matching one is accepted.
+#### Custom providers
 
-```bash
-ts=$(date +%s)
-sig=$(printf '%s' "$ts.$body" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
-curl -X POST https://hookshot.example.com/webhooks/receive/stripe \
-  -H "Stripe-Signature: t=$ts,v1=$sig" -d "$body"
+A provider is a subclass of `VerificationProviders::Base` that implements `verified?(request)` and returns `true` for
+an authentic request. `request` is the `ActionDispatch::Request`; `request.raw_post` is the body as received. `Base`
+gives you:
+
+| Method | Returns |
+|--------|---------|
+| `secrets` | the endpoint's secrets, one per line |
+| `endpoint` | the endpoint that received the request |
+| `hmac(algorithm, secret, *parts)` | the raw HMAC digest of the parts in order, without joining them |
+| `secure_match?(expected, given)` | `true` when `given` equals one of `expected`, compared in constant time |
+| `self.label` | the name shown in the admin (the class name unless you override it) |
+
+Register the class under a key in `config/initializers/verification_providers.rb`; the key is stored on the endpoints
+that use it. For example, a Stripe provider (`Stripe-Signature: t=<timestamp>,v1=<hex HMAC-SHA256 of "<t>.<body>">`,
+with a five minute replay window) in `app/services/verification_providers/stripe.rb`:
+
+```ruby
+module VerificationProviders
+  class Stripe < Base
+    TOLERANCE = 300
+
+    def verified?(request)
+      pairs = request.headers["Stripe-Signature"].to_s.split(",").map { |pair| pair.strip.split("=", 2) }
+      timestamp = pairs.assoc("t")&.last.to_s
+      return false unless timestamp.match?(/\A\d+\z/) && (Time.current.to_i - timestamp.to_i).abs <= TOLERANCE
+
+      expected = secrets.map { |secret| hmac("sha256", secret, timestamp, ".", request.raw_post).unpack1("H*") }
+      pairs.any? { |key, value| key == "v1" && secure_match?(expected, value.to_s) }
+    end
+  end
+end
 ```
 
-**Slack:** use the app's signing secret (not the verification token).
-
-```bash
-sig=$(printf '%s' "v0:$ts:$body" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
-curl -X POST https://hookshot.example.com/webhooks/receive/slack \
-  -H "X-Slack-Request-Timestamp: $ts" -H "X-Slack-Signature: v0=$sig" -d "$body"
+```ruby
+Rails.application.config.to_prepare do
+  VerificationProviders.register("github", VerificationProviders::Github)
+  VerificationProviders.register("stripe", VerificationProviders::Stripe)
+end
 ```
 
-**Shopify:** use the app's client secret.
-
-```bash
-sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$SECRET" -binary | base64)
-curl -X POST https://hookshot.example.com/webhooks/receive/shopify \
-  -H "X-Shopify-Hmac-Sha256: $sig" -d "$body"
-```
-
-**Generic HMAC:** set every part yourself in the form's "Generic HMAC settings":
-
-| Setting | Values |
-|---------|--------|
-| Signature header | any header name (letters, digits and dashes) |
-| Algorithm | SHA-1, SHA-256 (default), SHA-512 |
-| Encoding | hex (any letter case) or base64 |
-| Prefix to strip | e.g. `sha256=`; empty for none |
-| Header format | a plain value, or a `key=value` list (`t=...,v1=...`) with the signature key and an optional timestamp key |
-| Signed content | a template of `{body}`, `{timestamp}` and `{header:Name}` with any literal text, e.g. `{timestamp}.{body}` |
-| Timestamp header | the header carrying the Unix timestamp, unless the `key=value` list carries it |
-| Timestamp tolerance | seconds the timestamp may differ from the server clock; empty for no replay check |
-
-For example, a sender that signs `<X-Request-Id>:<body>` with HMAC-SHA512 in `X-Acme-Signature` as base64 uses
-header `X-Acme-Signature`, algorithm SHA-512, encoding base64 and signed content `{header:X-Request-Id}:{body}`.
+Register inside `to_prepare`, so the registration survives code reloading in development.
 
 ### Filters
 
