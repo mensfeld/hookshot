@@ -40,7 +40,7 @@
     </div>
     <div>
       <div class="text-base-content/60 text-xs uppercase tracking-wide">Signature verification</div>
-      <div><%= signature_preset_label(@endpoint) || "None" %></div>
+      <div><%= verification_provider_label(@endpoint) || "None" %></div>
     </div>
     <% if @endpoint.verifies_signatures? || @endpoint.verification_failures_count.positive? %>
       <div>

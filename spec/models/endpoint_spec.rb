@@ -164,143 +164,43 @@ RSpec.describe Endpoint do
   end
 
   describe "signature verification settings" do
-    it "verifies nothing without a preset" do
-      endpoint = create(:endpoint, signature_preset: "")
+    it "verifies nothing without a provider and drops the secrets" do
+      endpoint = create(:endpoint, verification_provider: "", signing_secrets: "x")
 
-      expect(endpoint).to have_attributes(verifier: nil, signature_preset: nil, verifies_signatures?: false)
+      expect(endpoint).to have_attributes(verification_provider: nil, signing_secrets: nil, verifies_signatures?: false)
     end
 
-    it "stores no signature settings without a preset, so loading the endpoint allocates no extra strings" do
-      endpoint = create(:endpoint, signature_preset: "", signing_secrets: "x", signature_algorithm: "sha512",
-        signature_encoding: "hex", signature_format: "plain", signed_payload_template: "{body}", timestamp_tolerance: 60)
+    it "clears the secrets when verification is turned off" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
 
-      values = endpoint.reload.attributes.values_at(*Endpoint::SIGNATURE_SETTINGS.map(&:to_s))
-      expect(values).to all(be_nil)
-    end
+      endpoint.update!(verification_provider: "")
 
-    it "clears the settings when verification is turned off" do
-      endpoint = create(:endpoint, signature_preset: "stripe", signing_secrets: "x")
-
-      endpoint.update!(signature_preset: "")
-
-      expect(endpoint.reload).to have_attributes(signing_secrets: nil, signature_header: nil, signed_payload_template: nil)
-    end
-
-    it "fills blank Generic HMAC settings with SHA-256, hex, a plain header and {body}" do
-      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signature_algorithm: "", signed_payload_template: "")
-
-      expect(endpoint).to have_attributes(signature_algorithm: "sha256", signature_encoding: "hex",
-        signature_format: "plain", signed_payload_template: "{body}")
-    end
-
-    it "fills in a named preset's settings and clears the ones it does not use" do
-      endpoint = create(:endpoint, signature_preset: "github", signing_secrets: "x", signature_header: "X-Other",
-        signature_encoding: "base64", timestamp_header: "X-Timestamp", timestamp_tolerance: 5)
-
-      expect(endpoint).to have_attributes(
-        verifier: "hmac", signature_header: "X-Hub-Signature-256", signature_encoding: "hex", signature_prefix: "sha256=",
-        timestamp_header: nil, timestamp_tolerance: nil
-      )
-    end
-
-    it "keeps the entered settings for Generic HMAC" do
-      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signature_algorithm: "sha512", signature_encoding: "base64", signature_prefix: "")
-
-      expect(endpoint).to have_attributes(verifier: "hmac", signature_header: "X-Sig", signature_algorithm: "sha512",
-        signature_encoding: "base64", signature_prefix: nil)
+      expect(endpoint.reload).to have_attributes(verification_provider: nil, signing_secrets: nil)
     end
 
     it "requires a secret" do
-      endpoint = build(:endpoint, signature_preset: "github", signing_secrets: " \n ")
+      endpoint = build(:endpoint, verification_provider: "github", signing_secrets: " \n ")
 
       expect(endpoint).not_to be_valid
       expect(endpoint.errors[:signing_secrets]).to include("must contain at least one secret")
+    end
+
+    it "rejects a provider that is not registered" do
+      endpoint = build(:endpoint, verification_provider: "acme", signing_secrets: "x")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:verification_provider]).to include("is not a registered provider")
     end
 
     it "lists one secret per non-blank line" do
       expect(build(:endpoint, signing_secrets: "a\r\n\n b \n").signing_secrets_list).to eq(%w[a b])
     end
 
-    it "rejects an unknown preset, algorithm, encoding or format" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signature_algorithm: "md5", signature_encoding: "base32", signature_format: "json")
-      endpoint.validate
+    it "rejects every request once its provider is no longer registered" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
+      endpoint.verification_provider = "removed"
 
-      expect(endpoint.errors.attribute_names).to include(:signature_algorithm, :signature_encoding, :signature_format)
-      expect(build(:endpoint, signature_preset: "acme", signing_secrets: "x")).not_to be_valid
-    end
-
-    it "requires the signature header and, for a key=value list, the signature key" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_format: "key_value")
-      endpoint.validate
-
-      expect(endpoint.errors[:signature_header]).to include("can't be blank")
-      expect(endpoint.errors[:signature_key]).to include("is required for a key=value signature header")
-    end
-
-    it "rejects unknown placeholders in the signed-content template" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signed_payload_template: "{body}.{nonce}")
-
-      expect(endpoint).not_to be_valid
-      expect(endpoint.errors[:signed_payload_template]).to include("may only use {body}, {timestamp} and {header:Name} (letters, digits and dashes)")
-    end
-
-    it "rejects a template header name Rails cannot look up" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signed_payload_template: "{header:X_Delivery}.{body}")
-
-      expect(endpoint).not_to be_valid
-    end
-
-    it "strips spaces around the signature and timestamp header names" do
-      endpoint = create(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: " X-Signature ",
-        timestamp_header: "X-T \n", timestamp_tolerance: 60)
-
-      expect(endpoint).to have_attributes(signature_header: "X-Signature", timestamp_header: "X-T")
-    end
-
-    [ "X_Signature", "X:Signature", "X Signature" ].each do |name|
-      it "rejects the signature header name #{name.inspect}" do
-        endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: name)
-
-        expect(endpoint).not_to be_valid
-        expect(endpoint.errors[:signature_header]).to include("may only contain letters, digits and dashes")
-      end
-
-      it "rejects the timestamp header name #{name.inspect}" do
-        endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-          timestamp_header: name, timestamp_tolerance: 60)
-
-        expect(endpoint).not_to be_valid
-        expect(endpoint.errors[:timestamp_header]).to include("may only contain letters, digits and dashes")
-      end
-    end
-
-    it "rejects an unmatched brace in the signed-content template" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        signed_payload_template: "{")
-
-      expect(endpoint).not_to be_valid
-    end
-
-    it "requires a timestamp source when the template signs a timestamp or a tolerance is set" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        timestamp_tolerance: 60)
-
-      expect(endpoint).not_to be_valid
-      expect(endpoint.errors[:timestamp_header]).to be_present
-
-      endpoint.timestamp_header = "X-Timestamp"
-      expect(endpoint).to be_valid
-    end
-
-    it "rejects a tolerance that is not a positive whole number" do
-      endpoint = build(:endpoint, signature_preset: "generic", signing_secrets: "x", signature_header: "X-Sig",
-        timestamp_header: "X-Timestamp", timestamp_tolerance: 0)
-      expect(endpoint).not_to be_valid
+      expect(endpoint.signature_verified?(instance_double(ActionDispatch::Request))).to be(false)
     end
 
     it "counts verification failures" do

@@ -170,63 +170,56 @@ RSpec.describe "Admin Endpoints" do
   end
 
   describe "signature verification" do
-    it "creates an endpoint with a preset and its secrets" do
+    it "creates an endpoint with a provider and its secrets" do
       post "/admin/endpoints", headers: auth_headers, params: {
-        endpoint: { name: "Stripe", signature_preset: "stripe", signing_secrets: "whsec_new\nwhsec_old" }
+        endpoint: { name: "GitHub", verification_provider: "github", signing_secrets: "new\nold" }
       }
 
-      endpoint = Endpoint.find_by!(slug: "stripe")
+      endpoint = Endpoint.find_by!(slug: "github")
       expect(response).to redirect_to(admin_endpoint_path(endpoint))
-      expect(endpoint).to have_attributes(verifier: "hmac", signature_header: "Stripe-Signature", signature_format: "key_value")
-      expect(endpoint.signing_secrets_list).to eq(%w[whsec_new whsec_old])
+      expect(endpoint).to have_attributes(verification_provider: "github", signing_secrets_list: %w[new old])
     end
 
-    it "saves the Generic HMAC settings" do
-      post "/admin/endpoints", headers: auth_headers, params: {
-        endpoint: {
-          name: "Acme", signature_preset: "generic", signing_secrets: "k", signature_header: "X-Acme-Signature",
-          signature_algorithm: "sha1", signature_encoding: "base64", signed_payload_template: "{timestamp}{body}",
-          timestamp_header: "X-Acme-Time", timestamp_tolerance: "120"
-        }
-      }
-
-      expect(Endpoint.find_by!(slug: "acme")).to have_attributes(
-        signature_header: "X-Acme-Signature", signature_algorithm: "sha1", signature_encoding: "base64",
-        signed_payload_template: "{timestamp}{body}", timestamp_header: "X-Acme-Time", timestamp_tolerance: 120
-      )
-    end
-
-    it "re-renders the form when a preset has no secret" do
-      post "/admin/endpoints", headers: auth_headers, params: { endpoint: { name: "GitHub", signature_preset: "github" } }
+    it "re-renders the form when a provider has no secret" do
+      post "/admin/endpoints", headers: auth_headers, params: { endpoint: { name: "GitHub", verification_provider: "github" } }
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.body).to include("Signing secrets must contain at least one secret")
     end
 
     it "turns verification off" do
-      endpoint = create(:endpoint, signature_preset: "github", signing_secrets: "x")
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
 
-      patch "/admin/endpoints/#{endpoint.id}", headers: auth_headers, params: { endpoint: { signature_preset: "" } }
+      patch "/admin/endpoints/#{endpoint.id}", headers: auth_headers, params: { endpoint: { verification_provider: "" } }
 
       expect(endpoint.reload.verifies_signatures?).to be(false)
     end
 
-    it "shows the verification and the rejected signatures on the endpoint and the list" do
-      endpoint = create(:endpoint, name: "Shop", signature_preset: "shopify", signing_secrets: "x",
+    it "shows the provider and the rejected signatures on the endpoint and the list" do
+      endpoint = create(:endpoint, name: "Repo", verification_provider: "github", signing_secrets: "x",
         verification_failures_count: 3, last_verification_failed_at: Time.zone.parse("2026-11-12 10:00:00"))
 
       get "/admin/endpoints/#{endpoint.id}", headers: auth_headers
-      expect(html.text).to include("Shopify", "Rejected signatures", "2026-11-12 10:00:00")
+      expect(html.text).to include("GitHub", "Rejected signatures", "2026-11-12 10:00:00")
 
       get "/admin/endpoints", headers: auth_headers
-      expect(html.at_css("[data-endpoint='#{endpoint.slug}']").text).to include("Shopify signature", "3 rejected signatures")
+      expect(html.at_css("[data-endpoint='#{endpoint.slug}']").text).to include("GitHub signature", "3 rejected signatures")
     end
 
-    it "renders the verification fields in the form" do
+    it "shows the key of a provider that is no longer registered" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
+      endpoint.update_column(:verification_provider, "stripe")
+
+      get "/admin/endpoints/#{endpoint.id}", headers: auth_headers
+
+      expect(html.text).to include("stripe")
+    end
+
+    it "offers the registered providers in the form" do
       get "/admin/endpoints/new", headers: auth_headers
 
-      expect(html.at_css("select[name='endpoint[signature_preset]']").css("option").map(&:text))
-        .to eq([ "None (accept every request)", "GitHub", "Stripe", "Slack", "Shopify", "Generic HMAC" ])
+      expect(html.at_css("select[name='endpoint[verification_provider]']").css("option").map(&:text))
+        .to eq([ "None (accept every request)", "GitHub" ])
       expect(html.at_css("textarea[name='endpoint[signing_secrets]']")).to be_present
     end
   end

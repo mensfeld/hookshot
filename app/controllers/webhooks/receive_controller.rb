@@ -26,7 +26,7 @@ module Webhooks
         return
       end
 
-      if endpoint.verifies_signatures? && !SignatureVerifier.new(endpoint).verified?(request)
+      if endpoint.verifies_signatures? && !endpoint.signature_verified?(request)
         endpoint.record_verification_failure!
         render json: { error: "Invalid signature" }, status: :unauthorized
         return

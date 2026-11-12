@@ -447,7 +447,7 @@ RSpec.describe "POST /webhooks/receive" do
 
   describe "signature verification" do
     let(:payload) { { action: "opened" }.to_json }
-    let!(:endpoint) { create(:endpoint, slug: "github", signature_preset: "github", signing_secrets: "s3cret") }
+    let!(:endpoint) { create(:endpoint, slug: "github", verification_provider: "github", signing_secrets: "s3cret") }
     let(:signature) { "sha256=#{OpenSSL::HMAC.hexdigest('sha256', 's3cret', payload)}" }
 
     def deliver(signature_header)
