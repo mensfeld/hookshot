@@ -230,6 +230,16 @@ RSpec.describe "Admin Endpoints" do
       expect(endpoint.reload).to have_attributes(name: "Pay", verification_provider: "stripe", signing_secrets: "x")
     end
 
+    it "selects the registered provider in the edit form" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
+
+      get "/admin/endpoints/#{endpoint.id}/edit", headers: auth_headers
+
+      select = html.at_css("select[name='endpoint[verification_provider]']")
+      expect(select.css("option").map(&:text)).to eq([ "None (accept every request)", "GitHub" ])
+      expect(select.css("option[selected]").map(&:text)).to eq([ "GitHub" ])
+    end
+
     it "offers the registered providers in the form" do
       get "/admin/endpoints/new", headers: auth_headers
 
