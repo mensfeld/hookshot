@@ -9,9 +9,11 @@ module VerificationProviders
     # Prefix GitHub puts before the hex digest.
     PREFIX = "sha256="
 
-    # @return [String] the provider name
-    def self.label
-      "GitHub"
+    class << self
+      # @return [String] the provider name
+      def label
+        "GitHub"
+      end
     end
 
     # @param request [ActionDispatch::Request] the inbound webhook request

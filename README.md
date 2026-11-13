@@ -253,6 +253,7 @@ end
 ```
 
 Register inside `to_prepare`, so the registration survives code reloading in development.
+`VerificationProviders.unregister("github")` removes a provider, e.g. the built-in one.
 
 ### Filters
 

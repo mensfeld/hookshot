@@ -5,10 +5,12 @@ require "openssl"
 module VerificationProviders
   # Base class of signature verification providers. A provider implements +verified?+ and may use the HMAC helpers.
   class Base
-    # Returns the provider name shown in the admin.
-    # @return [String] the provider name
-    def self.label
-      name.demodulize
+    class << self
+      # Returns the provider name shown in the admin.
+      # @return [String] the provider name
+      def label
+        name.demodulize
+      end
     end
 
     # @param endpoint [Endpoint] the endpoint that received the request

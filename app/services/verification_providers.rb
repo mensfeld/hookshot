@@ -14,6 +14,13 @@ module VerificationProviders
       @providers[key.to_s] = provider
     end
 
+    # Removes the provider registered under a key; endpoints that use it then reject every request.
+    # @param key [String, Symbol] the provider key
+    # @return [Class<VerificationProviders::Base>, nil] the removed provider class, or nil when none was registered
+    def unregister(key)
+      @providers.delete(key.to_s)
+    end
+
     # Returns the provider registered under a key.
     # @param key [String, nil] the provider key
     # @return [Class<VerificationProviders::Base>, nil] the provider class, or nil when none is registered
