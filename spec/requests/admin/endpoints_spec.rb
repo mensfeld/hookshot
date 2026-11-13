@@ -215,6 +215,21 @@ RSpec.describe "Admin Endpoints" do
       expect(html.text).to include("stripe")
     end
 
+    it "keeps a provider that is no longer registered when the edit form is saved" do
+      endpoint = create(:endpoint, name: "Pay", verification_provider: "github", signing_secrets: "x")
+      endpoint.update_column(:verification_provider, "stripe")
+
+      get "/admin/endpoints/#{endpoint.id}/edit", headers: auth_headers
+      selected = html.at_css("select[name='endpoint[verification_provider]'] option[selected]")
+      expect(selected.text).to eq("stripe (not registered)")
+
+      patch "/admin/endpoints/#{endpoint.id}", headers: auth_headers,
+        params: { endpoint: { name: "Payments", verification_provider: selected["value"], signing_secrets: "x" } }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(endpoint.reload).to have_attributes(name: "Pay", verification_provider: "stripe", signing_secrets: "x")
+    end
+
     it "offers the registered providers in the form" do
       get "/admin/endpoints/new", headers: auth_headers
 

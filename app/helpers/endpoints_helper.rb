@@ -19,9 +19,14 @@ module EndpointsHelper
     VerificationProviders.fetch(endpoint.verification_provider)&.label || endpoint.verification_provider
   end
 
-  # Returns the registered verification providers as select options.
+  # Returns the registered verification providers as select options, plus the endpoint's provider when it is no longer
+  # registered, so saving the form keeps it (and fails validation) instead of turning verification off.
+  # @param endpoint [Endpoint] endpoint the form edits
   # @return [Array<Array(String, String)>] provider name and key pairs
-  def verification_provider_options
-    VerificationProviders.all.map { |key, provider| [ provider.label, key ] }
+  def verification_provider_options(endpoint)
+    options = VerificationProviders.all.map { |key, provider| [ provider.label, key ] }
+    key = endpoint.verification_provider
+    options << [ "#{key} (not registered)", key ] if key.present? && !VerificationProviders.fetch(key)
+    options
   end
 end

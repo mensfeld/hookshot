@@ -49,7 +49,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <label class="form-control">
         <span class="label-text text-xs uppercase tracking-wide mb-1">Provider</span>
-        <%= f.select :verification_provider, verification_provider_options, { include_blank: "None (accept every request)" },
+        <%= f.select :verification_provider, verification_provider_options(@endpoint), { include_blank: "None (accept every request)" },
             class: "select select-bordered w-full" %>
       </label>
 
