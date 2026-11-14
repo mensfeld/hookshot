@@ -137,7 +137,9 @@ claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
 
 | Tool | What it does |
 |------|--------------|
-| `list_endpoints` | List endpoints with their attached target ids |
+| `list_endpoints` | List endpoints with their attached target ids and signature verification state |
+| `list_verification_providers` | List the registered signature verification providers |
+| `set_endpoint_verification` | Set an endpoint's verification provider and secrets, or turn verification off |
 | `list_targets` | List targets with their endpoints and 24h success rate (custom headers are not shown) |
 | `set_target_active` | Activate or deactivate a target |
 | `list_webhooks` | List webhooks, newest first, by endpoint and search text |
@@ -149,6 +151,11 @@ claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
 `list_webhooks` and `list_dispatches` return 20 records by default and at most 100 (`limit`); `list_endpoints` and
 `list_targets` return every record. Requests with an `Origin` header naming another origin, or an unsupported
 `MCP-Protocol-Version` header, are rejected.
+
+The MCP tools never return signing secrets: `list_endpoints` and `set_endpoint_verification` show the number of
+secrets, the provider, and the rejected-request count and time. `set_endpoint_verification` takes the endpoint `id`, a
+registered `provider` key (or `null` to turn verification off and remove the secrets) and optional `secrets`, an
+array that replaces the current secrets; without `secrets` the current ones are kept.
 
 ### Configuring Targets
 
