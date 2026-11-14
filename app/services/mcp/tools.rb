@@ -24,8 +24,26 @@ module Mcp
     # Tool names mapped to their description and input properties. Properties listed in +required+ must be present.
     DEFINITIONS = {
       "list_endpoints" => {
-        description: "List endpoints (named receive URLs) with their attached target ids.",
+        description: "List endpoints (named receive URLs) with their attached target ids and signature verification " \
+          "state (provider, number of secrets, rejected requests). Secrets are not shown.",
         properties: {}
+      },
+      "list_verification_providers" => {
+        description: "List the registered signature verification providers an endpoint can use.",
+        properties: {}
+      },
+      "set_endpoint_verification" => {
+        description: "Set the signature verification provider of an endpoint, or turn verification off with a null " \
+          "provider (this removes the endpoint's secrets). A request signed with any of the secrets is accepted.",
+        properties: {
+          id: { type: "integer" },
+          provider: { type: %w[string null], description: "Key of a registered provider, or null to turn verification off" },
+          secrets: {
+            type: "array", items: { type: "string" },
+            description: "Signing secrets, replacing the current ones (default: keep them)"
+          }
+        },
+        required: %w[id provider]
       },
       "list_targets" => {
         description: "List targets (destination URLs) with their endpoints and 24h success rate.",
@@ -119,8 +137,27 @@ module Mcp
     # @return [Array<Hash>] every endpoint
     def list_endpoints(_arguments)
       Endpoint.includes(:endpoint_targets).order(:name).map do |endpoint|
-        endpoint.slice(:id, :name, :slug, :active).merge(target_ids: endpoint.endpoint_targets.map(&:target_id))
+        endpoint.slice(:id, :name, :slug, :active)
+          .merge(target_ids: endpoint.endpoint_targets.map(&:target_id))
+          .merge(endpoint_verification(endpoint))
       end
+    end
+
+    # @param _arguments [Hash] unused
+    # @return [Array<Hash>] key and admin label of every registered provider
+    def list_verification_providers(_arguments)
+      VerificationProviders.all.map { |key, provider| { key: key, label: provider.label } }
+    end
+
+    # @param arguments [Hash] +id+, +provider+ and optional +secrets+
+    # @return [Hash] the endpoint's verification state, without its secrets
+    def set_endpoint_verification(arguments)
+      endpoint = Endpoint.find(integer(arguments, "id"))
+      attributes = { verification_provider: string(arguments, "provider") }
+      attributes[:signing_secrets] = secrets(arguments).join("\n") if arguments.key?("secrets")
+
+      endpoint.update!(attributes)
+      endpoint.slice(:id, :slug).merge(endpoint_verification(endpoint))
     end
 
     # @param _arguments [Hash] unused
@@ -217,6 +254,13 @@ module Mcp
       )
     end
 
+    # @param endpoint [Endpoint] the endpoint to summarize
+    # @return [Hash] the endpoint's verification fields, with the number of secrets instead of the secrets
+    def endpoint_verification(endpoint)
+      endpoint.slice(:verification_provider, :verification_failures_count, :last_verification_failed_at)
+        .merge(signing_secrets_count: endpoint.signing_secrets_list.size)
+    end
+
     # @param delivery [Delivery] the delivery to summarize
     # @return [Hash] the delivery's listing fields
     def delivery_summary(delivery)
@@ -241,6 +285,18 @@ module Mcp
     def string(arguments, key)
       value = arguments[key]
       raise ArgumentsError, "#{key} must be a string" unless value.nil? || value.is_a?(String)
+
+      value
+    end
+
+    # Reads the +secrets+ argument: an array of single-line strings.
+    # @param arguments [Hash] arguments sent by the client, keyed by name
+    # @return [Array<String>] the secrets
+    def secrets(arguments)
+      value = arguments["secrets"]
+      unless value.is_a?(Array) && value.all? { |secret| secret.is_a?(String) && secret.count("\r\n").zero? }
+        raise ArgumentsError, "secrets must be an array of single-line strings"
+      end
 
       value
     end
