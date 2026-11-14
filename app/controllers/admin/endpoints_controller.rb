@@ -70,7 +70,8 @@ module Admin
     # Permits endpoint parameters.
     # @return [ActionController::Parameters] permitted parameters
     def endpoint_params
-      params.require(:endpoint).permit(:name, :slug, :description, :active, target_ids: [])
+      params.require(:endpoint).permit(:name, :slug, :description, :active, :verification_provider, :signing_secrets,
+        target_ids: [])
     end
   end
 end

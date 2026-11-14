@@ -1,5 +1,9 @@
 # Hookshot changelog
 
+## 1.6.0 (Unreleased)
+- [Feature] Per-endpoint signature verification of inbound webhooks through pluggable providers. Hookshot ships the GitHub provider (`X-Hub-Signature-256`); others subclass `VerificationProviders::Base` and are registered with `VerificationProviders.register` in an initializer. Several secrets can be set at once to rotate one without downtime; spaces around each secret are ignored. A missing or wrong signature answers 401 and is neither stored nor forwarded; the endpoint pages count rejected requests. An endpoint whose provider is no longer registered rejects every request. Endpoints without a provider accept every request as before. Run `bin/rails db:migrate`.
+- [Feature] MCP tools to configure signature verification: `list_verification_providers` lists the registered providers, `set_endpoint_verification` sets an endpoint's provider and secrets or turns verification off, and `list_endpoints` shows each endpoint's provider, number of secrets and rejected requests. The tools never return the secrets.
+
 ## 1.5.0 (2026-11-09)
 - [Feature] Endpoints: named inbound URLs (`POST /webhooks/receive/:slug`) that forward only to the targets attached to them, so one sender can route actions with identical payloads by posting to different URLs. Targets and endpoints are many-to-many and target filters still apply. The endpoint comes from the URL path only, never from the request body or query string.
 - [Feature] Admin pages to create, edit, deactivate and delete endpoints, showing each receive URL with a copy button, its targets and recent activity.

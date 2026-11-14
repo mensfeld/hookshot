@@ -34,6 +34,7 @@ Then:
 
 - **Webhook Reception**: Accepts POST requests at `/webhooks/receive` and stores headers, payload, and metadata
 - **Endpoints**: Named inbound URLs (`/webhooks/receive/<slug>`) that each forward only to their own targets
+- **Signature Verification**: Pluggable per-endpoint providers (GitHub built in) reject forged webhooks
 - **Multiple Targets**: Configure multiple destination URLs for webhook delivery
 - **Filtering**: Route webhooks to specific targets based on header or payload content
 - **Background Processing**: Reliable delivery with Solid Queue, including retries with exponential backoff
@@ -136,7 +137,9 @@ claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
 
 | Tool | What it does |
 |------|--------------|
-| `list_endpoints` | List endpoints with their attached target ids |
+| `list_endpoints` | List endpoints with their attached target ids and signature verification state |
+| `list_verification_providers` | List the registered signature verification providers |
+| `set_endpoint_verification` | Set an endpoint's verification provider and secrets, or turn verification off |
 | `list_targets` | List targets with their endpoints and 24h success rate (custom headers are not shown) |
 | `set_target_active` | Activate or deactivate a target |
 | `list_webhooks` | List webhooks, newest first, by endpoint and search text |
@@ -148,6 +151,11 @@ claude mcp add --transport http hookshot https://hookshot.example.com/mcp \
 `list_webhooks` and `list_dispatches` return 20 records by default and at most 100 (`limit`); `list_endpoints` and
 `list_targets` return every record. Requests with an `Origin` header naming another origin, or an unsupported
 `MCP-Protocol-Version` header, are rejected.
+
+The MCP tools never return signing secrets: `list_endpoints` and `set_endpoint_verification` show the number of
+secrets, the provider, and the rejected-request count and time. `set_endpoint_verification` takes the endpoint `id`, a
+registered `provider` key (or `null` to turn verification off and remove the secrets) and optional `secrets`, an
+array that replaces the current secrets; without `secrets` the current ones are kept.
 
 ### Configuring Targets
 
@@ -182,6 +190,77 @@ payloads by posting them to different URLs:
 - **Endpoints without targets:** webhooks are stored but not forwarded.
 - **Many-to-many:** a target can be attached to several endpoints, and an endpoint can have several targets.
 - **Replay:** sends a webhook to the current targets of the endpoint that received it.
+
+### Signature Verification
+
+Each endpoint can check the signature senders put on their webhooks. Pick a provider under **Signature verification**
+in the endpoint form and enter the signing secret. An endpoint without a provider accepts every request, as before.
+Hookshot ships the GitHub provider; you can add your own (see [Custom providers](#custom-providers)).
+
+- **Rejected requests:** a missing or wrong signature answers `401 {"error":"Invalid signature"}`. Nothing is stored
+  or forwarded. The endpoint page and list show how many requests were rejected and when the last one was.
+- **Raw body:** providers check the body bytes exactly as received.
+- **Secret rotation:** enter one secret per line; spaces around each line are removed. A request signed with any of
+  them is accepted, so add the new secret, switch the sender over, then remove the old one.
+- **Turning it off:** choosing "None" removes the endpoint's secrets.
+- **Removed provider:** an endpoint whose provider is no longer registered rejects every request until you pick
+  another one.
+
+**GitHub:** `X-Hub-Signature-256` carries `sha256=` and the hex HMAC-SHA256 of the body. Create the endpoint with the
+GitHub provider and the webhook's secret, and point the GitHub webhook at
+`https://hookshot.example.com/webhooks/receive/<slug>`. To test it by hand:
+
+```bash
+body='{"zen":"Keep it logically awesome."}'
+sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
+curl -X POST https://hookshot.example.com/webhooks/receive/github \
+  -H "Content-Type: application/json" -H "X-Hub-Signature-256: sha256=$sig" -d "$body"
+```
+
+#### Custom providers
+
+A provider is a subclass of `VerificationProviders::Base` that implements `verified?(request)` and returns `true` for
+an authentic request. `request` is the `ActionDispatch::Request`; `request.raw_post` is the body as received. `Base`
+gives you:
+
+| Method | Returns |
+|--------|---------|
+| `secrets` | the endpoint's secrets, one per line |
+| `endpoint` | the endpoint that received the request |
+| `hmac(algorithm, secret, *parts)` | the raw HMAC digest of the parts in order, without joining them |
+| `secure_match?(expected, given)` | `true` when `given` equals one of `expected`, compared in constant time |
+| `self.label` | the name shown in the admin (the class name unless you override it) |
+
+Register the class under a key in `config/initializers/verification_providers.rb`; the key is stored on the endpoints
+that use it. For example, a Stripe provider (`Stripe-Signature: t=<timestamp>,v1=<hex HMAC-SHA256 of "<t>.<body>">`,
+with a five minute replay window) in `app/services/verification_providers/stripe.rb`:
+
+```ruby
+module VerificationProviders
+  class Stripe < Base
+    TOLERANCE = 300
+
+    def verified?(request)
+      pairs = request.headers["Stripe-Signature"].to_s.split(",").map { |pair| pair.strip.split("=", 2) }
+      timestamp = pairs.assoc("t")&.last.to_s
+      return false unless timestamp.match?(/\A\d+\z/) && (Time.current.to_i - timestamp.to_i).abs <= TOLERANCE
+
+      expected = secrets.map { |secret| hmac("sha256", secret, timestamp, ".", request.raw_post).unpack1("H*") }
+      pairs.any? { |key, value| key == "v1" && secure_match?(expected, value.to_s) }
+    end
+  end
+end
+```
+
+```ruby
+Rails.application.config.to_prepare do
+  VerificationProviders.register("github", VerificationProviders::Github)
+  VerificationProviders.register("stripe", VerificationProviders::Stripe)
+end
+```
+
+Register inside `to_prepare`, so the registration survives code reloading in development.
+`VerificationProviders.unregister("github")` removes a provider, e.g. the built-in one.
 
 ### Filters
 
@@ -227,8 +306,10 @@ In the target form each group is a card: rename it, add filters to it, or remove
 collapsed to a one-line summary, and the collapsed state is remembered per target in your browser.
 
 Targets whose filters all stay in the `default` group behave as a plain AND of every filter. Once more groups exist,
-`default` is just another alternative: there is no condition shared by all groups, so repeat common checks (such as
-a signature header) in every group. A group that only partially matches never causes delivery on its own.
+`default` is just another alternative: there is no condition shared by all groups, so repeat common checks in every
+group. A filter on a signature header only checks that the header is there, which anyone can fake: use the endpoint's
+[signature verification](#signature-verification) instead. A group that only partially matches never causes delivery
+on its own.
 
 **Example**: forward only actionable GitHub events to one endpoint:
 
@@ -248,8 +329,8 @@ whitespace is stripped.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/webhooks/receive` | None | Receive incoming webhooks on the default endpoint |
-| POST | `/webhooks/receive/:slug` | None | Receive incoming webhooks on a named endpoint |
+| POST | `/webhooks/receive` | None (or the endpoint's signature) | Receive incoming webhooks on the default endpoint |
+| POST | `/webhooks/receive/:slug` | None (or the endpoint's signature) | Receive incoming webhooks on a named endpoint |
 | GET | `/health` | None | Health check endpoint |
 | GET | `/admin/*` | Basic | Admin dashboard |
 | POST | `/mcp` | Basic | MCP server for admin tools |

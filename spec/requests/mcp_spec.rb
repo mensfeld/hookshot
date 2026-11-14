@@ -171,6 +171,93 @@ RSpec.describe "MCP server" do
         expect(error).to be false
         expect(data).to contain_exactly(include("slug" => "default", "active" => true, "target_ids" => [ target.id ]))
       end
+
+      it "shows each endpoint's verification state without its secrets" do
+        Endpoint.default.update!(verification_provider: "github", signing_secrets: "old\nnew")
+        Endpoint.default.record_verification_failure!
+
+        data, = call_tool("list_endpoints")
+
+        expect(data.first).to include(
+          "verification_provider" => "github", "signing_secrets_count" => 2, "verification_failures_count" => 1,
+          "last_verification_failed_at" => be_present
+        )
+        expect(data.first).not_to have_key("signing_secrets")
+      end
+    end
+
+    describe "list_verification_providers" do
+      it "lists the registered providers with their labels" do
+        data, error = call_tool("list_verification_providers")
+
+        expect(error).to be false
+        expect(data).to eq([ { "key" => "github", "label" => "GitHub" } ])
+      end
+    end
+
+    describe "set_endpoint_verification" do
+      let(:endpoint) { create(:endpoint) }
+
+      it "turns verification on with the given secrets" do
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github", secrets: %w[old new] })
+
+        expect(error).to be false
+        expect(data).to include("id" => endpoint.id, "verification_provider" => "github", "signing_secrets_count" => 2)
+        expect(data).not_to have_key("signing_secrets")
+        expect(endpoint.reload.signing_secrets_list).to eq(%w[old new])
+      end
+
+      it "keeps the current secrets when none are given" do
+        endpoint.update_columns(verification_provider: "acme", signing_secrets: "kept")
+
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github" })
+
+        expect(error).to be false
+        expect(data).to include("verification_provider" => "github", "signing_secrets_count" => 1)
+        expect(endpoint.reload).to have_attributes(verification_provider: "github", signing_secrets: "kept")
+      end
+
+      it "turns verification off and removes the secrets" do
+        endpoint.update!(verification_provider: "github", signing_secrets: "secret")
+
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: nil })
+
+        expect(error).to be false
+        expect(data).to include("verification_provider" => nil, "signing_secrets_count" => 0)
+        expect(endpoint.reload).to have_attributes(verification_provider: nil, signing_secrets: nil)
+      end
+
+      it "rejects an unregistered provider" do
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "acme", secrets: [ "x" ] })
+
+        expect(error).to be true
+        expect(data["error"]).to include("Verification provider is not a registered provider")
+        expect(endpoint.reload.verification_provider).to be_nil
+      end
+
+      it "requires a secret when verification is on" do
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github", secrets: [] })
+
+        expect(error).to be true
+        expect(data["error"]).to include("Signing secrets must contain at least one secret")
+      end
+
+      it "rejects secrets that are not single-line strings" do
+        [ "x", [ 1 ], [ "a\nb" ] ].each do |secrets|
+          data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github", secrets: secrets })
+
+          expect(error).to be true
+          expect(data["error"]).to eq("secrets must be an array of single-line strings")
+        end
+        expect(endpoint.reload.verification_provider).to be_nil
+      end
+
+      it "requires a string provider" do
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: 1 })
+
+        expect(error).to be true
+        expect(data["error"]).to eq("provider must be a string")
+      end
     end
 
     describe "list_targets" do

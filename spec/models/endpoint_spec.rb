@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe Endpoint do
+  include ActiveSupport::Testing::TimeHelpers
+
   describe "associations" do
     it { is_expected.to have_many(:endpoint_targets).dependent(:destroy) }
     it { is_expected.to have_many(:targets).through(:endpoint_targets) }
@@ -158,6 +160,57 @@ RSpec.describe Endpoint do
     it "report nothing for an endpoint that never received a webhook" do
       expect(endpoint.webhooks_count_24h).to eq(0)
       expect(endpoint.last_received_at).to be_nil
+    end
+  end
+
+  describe "signature verification settings" do
+    it "verifies nothing without a provider and drops the secrets" do
+      endpoint = create(:endpoint, verification_provider: "", signing_secrets: "x")
+
+      expect(endpoint).to have_attributes(verification_provider: nil, signing_secrets: nil, verifies_signatures?: false)
+    end
+
+    it "clears the secrets when verification is turned off" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
+
+      endpoint.update!(verification_provider: "")
+
+      expect(endpoint.reload).to have_attributes(verification_provider: nil, signing_secrets: nil)
+    end
+
+    it "requires a secret" do
+      endpoint = build(:endpoint, verification_provider: "github", signing_secrets: " \n ")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:signing_secrets]).to include("must contain at least one secret")
+    end
+
+    it "rejects a provider that is not registered" do
+      endpoint = build(:endpoint, verification_provider: "acme", signing_secrets: "x")
+
+      expect(endpoint).not_to be_valid
+      expect(endpoint.errors[:verification_provider]).to include("is not a registered provider")
+    end
+
+    it "lists one secret per non-blank line" do
+      expect(build(:endpoint, signing_secrets: "a\r\n\n b \n").signing_secrets_list).to eq(%w[a b])
+    end
+
+    it "rejects every request once its provider is no longer registered" do
+      endpoint = create(:endpoint, verification_provider: "github", signing_secrets: "x")
+      endpoint.verification_provider = "removed"
+
+      expect(endpoint.signature_verified?(instance_double(ActionDispatch::Request))).to be(false)
+    end
+
+    it "counts verification failures" do
+      endpoint = create(:endpoint)
+
+      freeze_time do
+        2.times { endpoint.record_verification_failure! }
+
+        expect(endpoint.reload).to have_attributes(verification_failures_count: 2, last_verification_failed_at: Time.current)
+      end
     end
   end
 end

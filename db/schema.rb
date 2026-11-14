@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_160000) do
   create_table "deliveries", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
     t.datetime "created_at", null: false
@@ -49,6 +49,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_090000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "verification_provider"
+    t.text "signing_secrets"
+    t.integer "verification_failures_count", default: 0, null: false
+    t.datetime "last_verification_failed_at"
     t.index ["slug"], name: "index_endpoints_on_slug", unique: true
   end
 

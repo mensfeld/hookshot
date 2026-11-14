@@ -44,6 +44,25 @@
   </div>
 
   <div class="border-t border-base-300 pt-6">
+    <h3 class="font-medium mb-1">Signature verification</h3>
+    <p class="text-sm text-base-content/60 mb-3">Requests without a valid signature are answered 401 and are neither stored nor forwarded.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <label class="form-control">
+        <span class="label-text text-xs uppercase tracking-wide mb-1">Provider</span>
+        <%= f.select :verification_provider, verification_provider_options(@endpoint), { include_blank: "None (accept every request)" },
+            class: "select select-bordered w-full" %>
+      </label>
+
+      <label class="form-control">
+        <span class="label-text text-xs uppercase tracking-wide mb-1">Secrets</span>
+        <%= f.text_area :signing_secrets, rows: 2, class: "textarea textarea-bordered w-full font-mono", autocomplete: "off",
+            placeholder: "One per line, spaces around it removed; any of them may sign" %>
+        <span class="text-xs text-base-content/60 mt-1">Add the new secret on its own line before rotating it at the sender, then remove the old one.</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="border-t border-base-300 pt-6">
     <h3 class="font-medium mb-1">Forward to targets</h3>
     <p class="text-sm text-base-content/60 mb-3">Webhooks received here go to the selected targets, each still subject to its own filters.</p>
     <% targets = Target.order(:name) %>
