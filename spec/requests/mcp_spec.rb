@@ -208,11 +208,13 @@ RSpec.describe "MCP server" do
       end
 
       it "keeps the current secrets when none are given" do
-        endpoint.update!(verification_provider: "github", signing_secrets: "kept")
+        endpoint.update_columns(verification_provider: "acme", signing_secrets: "kept")
 
-        call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github" })
+        data, error = call_tool("set_endpoint_verification", { id: endpoint.id, provider: "github" })
 
-        expect(endpoint.reload.signing_secrets).to eq("kept")
+        expect(error).to be false
+        expect(data).to include("verification_provider" => "github", "signing_secrets_count" => 1)
+        expect(endpoint.reload).to have_attributes(verification_provider: "github", signing_secrets: "kept")
       end
 
       it "turns verification off and removes the secrets" do
